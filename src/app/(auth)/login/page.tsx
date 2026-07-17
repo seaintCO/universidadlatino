@@ -1,16 +1,23 @@
 ﻿import Link from "next/link";
 import { login } from "@/app/(auth)/actions";
+import { isPurchaseKey } from "@/lib/payments/catalog";
 
 type LoginPageProps = {
   searchParams: Promise<{
     error?: string;
     message?: string;
     next?: string;
+    purchase?: string;
   }>;
 };
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const params = await searchParams;
+  const purchase = isPurchaseKey(params.purchase) ? params.purchase : "";
+
+  const registerHref = purchase
+    ? `/registro?purchase=${encodeURIComponent(purchase)}`
+    : "/registro";
 
   return (
     <main className="grid min-h-screen bg-white md:grid-cols-2">
@@ -25,8 +32,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           </h1>
 
           <p className="mt-6 leading-8 text-[#b7bbb4]">
-            Accede a tus cursos, continúa tu progreso y construye una nueva
-            oportunidad paso a paso.
+            Inicia sesión y continúa directamente al pago seguro de tu curso.
           </p>
         </div>
 
@@ -47,8 +53,14 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           </h2>
 
           <p className="mt-3 text-sm text-[#686c66]">
-            Inicia sesión para continuar aprendiendo.
+            Inicia sesión para continuar.
           </p>
+
+          {purchase ? (
+            <div className="mt-5 rounded-lg border border-[#c9dacf] bg-[#edf4ef] p-3 text-sm text-[#254f3f]">
+              Después de iniciar sesión te enviaremos directamente a Stripe.
+            </div>
+          ) : null}
 
           {params.error ? (
             <div className="mt-6 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
@@ -68,6 +80,8 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
               name="next"
               value={params.next ?? "/dashboard"}
             />
+
+            <input type="hidden" name="purchase" value={purchase} />
 
             <div>
               <label
@@ -114,15 +128,17 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
             <button
               type="submit"
-              className="min-h-12 w-full rounded-lg bg-[#1f211f] px-5 text-sm font-semibold text-white hover:bg-[#30332f]"
+              className="min-h-12 w-full rounded-lg bg-[#1f211f] px-5 text-sm font-semibold !text-white hover:bg-[#30332f]"
             >
-              Iniciar sesión
+              {purchase
+                ? "Iniciar sesión y continuar al pago"
+                : "Iniciar sesión"}
             </button>
           </form>
 
           <p className="mt-8 text-center text-sm text-[#686c66]">
             ¿Aún no tienes una cuenta?{" "}
-            <Link href="/registro" className="font-semibold text-[#1f211f]">
+            <Link href={registerHref} className="font-semibold text-[#1f211f]">
               Crear cuenta
             </Link>
           </p>
