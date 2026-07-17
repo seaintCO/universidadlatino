@@ -9,6 +9,7 @@ import {
   Play,
 } from "lucide-react";
 import { MarketingHeader } from "@/components/layout/marketing-header";
+import { UniversidadLatinoHero } from "@/components/marketing/universidad-latino-hero";
 import { EliteCtaButton } from "@/components/marketing/elite-cta-button";
 import { ReviewMarquee } from "@/components/marketing/review-marquee";
 
@@ -57,39 +58,7 @@ export default function HomePage() {
       <MarketingHeader />
 
       <main>
-        <section className="container-shell py-20 text-center md:py-28">
-          <p className="editorial-label mb-5">Educación práctica en español</p>
-
-          <h1 className="mx-auto max-w-5xl text-5xl font-semibold leading-[1.02] tracking-[-0.055em] md:text-7xl">
-            Aprende habilidades para
-            <br />
-            generar hasta $10,000 al mes.
-          </h1>
-
-          <p className="mx-auto mt-7 max-w-2xl text-base leading-8 text-[#686c66] md:text-xl">
-            Aprende Trading, E-commerce y TikTok Shop con rutas prácticas,
-            claras y diseñadas para ayudarte a construir nuevas fuentes de
-            ingresos.
-          </p>
-
-          <div className="mt-9 flex flex-col justify-center gap-3 sm:flex-row">
-            <EliteCtaButton href="#precios">
-              Obtener los 3 cursos por $100
-            </EliteCtaButton>
-
-            <Link
-              href="#cursos"
-              className="inline-flex min-h-12 items-center justify-center rounded-lg border border-[#ddd9d0] bg-white px-6 text-sm font-semibold transition-colors hover:bg-[#efede7]"
-            >
-              Explorar cursos
-            </Link>
-          </div>
-
-          <p className="mx-auto mt-5 max-w-xl text-xs leading-5 text-[#868a84]">
-            Los resultados dependen de tu experiencia, esfuerzo y ejecución. Los
-            ingresos no están garantizados.
-          </p>
-        </section>
+        <UniversidadLatinoHero />
 
         <section className="container-shell pb-24">
           <div className="relative flex aspect-video items-center justify-center overflow-hidden rounded-2xl bg-[#1f211f]">

@@ -163,3 +163,92 @@ a {
     animation: none;
   }
 }
+
+/* Universidad Latino premium hero */
+
+@keyframes universidadFadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes universidadGridMove {
+  from {
+    background-position: 0 0;
+  }
+
+  to {
+    background-position: 48px 48px;
+  }
+}
+
+.universidad-fade-1 {
+  animation: universidadFadeSlideIn 0.75s ease-out 0.05s both;
+}
+
+.universidad-fade-2 {
+  animation: universidadFadeSlideIn 0.75s ease-out 0.12s both;
+}
+
+.universidad-fade-3 {
+  animation: universidadFadeSlideIn 0.75s ease-out 0.2s both;
+}
+
+.universidad-fade-4 {
+  animation: universidadFadeSlideIn 0.75s ease-out 0.28s both;
+}
+
+.universidad-fade-5 {
+  animation: universidadFadeSlideIn 0.75s ease-out 0.36s both;
+}
+
+.universidad-fade-6 {
+  animation: universidadFadeSlideIn 0.75s ease-out 0.44s both;
+}
+
+.universidad-hero-grid {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.12) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.85), transparent 86%);
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.85),
+    transparent 86%
+  );
+  animation: universidadGridMove 18s linear infinite;
+}
+
+.universidad-phone-scroll {
+  scrollbar-width: none;
+}
+
+.universidad-phone-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+@media (max-width: 639px) {
+  .universidad-hero-grid {
+    background-size: 36px 36px;
+    opacity: 0.05;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .universidad-fade-1,
+  .universidad-fade-2,
+  .universidad-fade-3,
+  .universidad-fade-4,
+  .universidad-fade-5,
+  .universidad-fade-6,
+  .universidad-hero-grid {
+    animation: none;
+  }
+}
