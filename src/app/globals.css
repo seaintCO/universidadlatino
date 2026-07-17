@@ -84,3 +84,82 @@ a {
     width: min(100% - 1.25rem, 80rem);
   }
 }
+
+/* Mercado University elite CTA and review marquee */
+
+@keyframes elite-beam-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes elite-lines-slide {
+  from {
+    background-position: 0 0;
+  }
+
+  to {
+    background-position: 24px 0;
+  }
+}
+
+@keyframes review-marquee-scroll {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.elite-beam {
+  animation: elite-beam-spin 3s linear infinite;
+}
+
+.elite-lines {
+  background-image: repeating-linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 1),
+    rgba(255, 255, 255, 1) 1px,
+    transparent 1px,
+    transparent 8px
+  );
+  background-size: 24px 100%;
+  animation: elite-lines-slide 1.5s linear infinite;
+}
+
+.review-marquee-mask {
+  overflow: hidden;
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 8%,
+    black 92%,
+    transparent
+  );
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 8%,
+    black 92%,
+    transparent
+  );
+}
+
+.review-marquee-track {
+  animation: review-marquee-scroll 70s linear infinite;
+  will-change: transform;
+}
+
+.review-marquee-mask:hover .review-marquee-track {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .elite-beam,
+  .elite-lines,
+  .review-marquee-track {
+    animation: none;
+  }
+}

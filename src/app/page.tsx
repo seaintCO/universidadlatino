@@ -9,6 +9,8 @@ import {
   Play,
 } from "lucide-react";
 import { MarketingHeader } from "@/components/layout/marketing-header";
+import { EliteCtaButton } from "@/components/marketing/elite-cta-button";
+import { ReviewMarquee } from "@/components/marketing/review-marquee";
 
 const launchCourses = [
   {
@@ -71,13 +73,9 @@ export default function HomePage() {
           </p>
 
           <div className="mt-9 flex flex-col justify-center gap-3 sm:flex-row">
-            <Link
-              href="#precios"
-              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-[#2f6650] px-6 text-sm font-semibold text-white transition-colors hover:bg-[#254f3f]"
-            >
+            <EliteCtaButton href="#precios">
               Obtener los 3 cursos por $100
-              <ArrowRight size={17} />
-            </Link>
+            </EliteCtaButton>
 
             <Link
               href="#cursos"
@@ -115,6 +113,8 @@ export default function HomePage() {
             habilidades prácticas y un sistema que puedas seguir paso a paso.
           </p>
         </section>
+
+        <ReviewMarquee />
 
         <section className="border-y border-[#ddd9d0] bg-white">
           <div className="container-shell grid gap-7 py-10 sm:grid-cols-2 lg:grid-cols-4">
@@ -322,13 +322,9 @@ export default function HomePage() {
                   </li>
                 </ul>
 
-                <Link
-                  href="/evaluacion"
-                  className="mt-9 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-white px-6 text-sm font-semibold text-[#1f211f] transition-colors hover:bg-[#efede7]"
-                >
+                <EliteCtaButton href="/evaluacion" className="mt-9 sm:w-full">
                   Obtener los tres cursos
-                  <ArrowRight size={17} />
-                </Link>
+                </EliteCtaButton>
               </div>
             </div>
 
