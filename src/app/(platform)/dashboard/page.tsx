@@ -1,4 +1,5 @@
 ﻿import Link from "next/link";
+import { redirect } from "next/navigation";
 import {
   ArrowRight,
   Award,
@@ -9,7 +10,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { getCurrentProfile, requireUser } from "@/lib/auth/session";
-import { getCurrentSubscription } from "@/lib/data/subscriptions";
+import { getUserAccessKeys } from "@/lib/payments/access";
 import {
   getDashboardLearningState,
   getLearningActivityStats,
@@ -31,13 +32,21 @@ function formatVideoPosition(seconds: number) {
 export default async function DashboardPage() {
   const user = await requireUser();
 
-  const [profile, subscription, learningState, activityStats] =
-    await Promise.all([
+  const [profile, accessKeys, learningState, activityStats] = await Promise.all(
+    [
       getCurrentProfile(),
-      getCurrentSubscription(user.id),
+      getUserAccessKeys(user.id),
       getDashboardLearningState(user.id),
       getLearningActivityStats(user.id),
-    ]);
+    ],
+  );
+
+  const isAdmin = profile?.role === "admin";
+  const hasPaidAccess = accessKeys.size > 0;
+
+  if (!isAdmin && !hasPaidAccess) {
+    redirect("/?purchase_required=1#precios");
+  }
 
   const name =
     profile?.display_name ??
@@ -45,12 +54,19 @@ export default async function DashboardPage() {
     user.email?.split("@")[0] ??
     "Estudiante";
 
-  const planLabel =
-    subscription?.plan === "academia_pro"
-      ? "Academia Pro"
-      : subscription?.plan === "academia"
-        ? "Academia"
-        : "Sin membresía";
+  const accessLabel = isAdmin
+    ? "Acceso administrativo"
+    : accessKeys.has("bundle")
+      ? "Acceso completo"
+      : accessKeys.has("trading")
+        ? "Trading desde Cero"
+        : accessKeys.has("ecommerce")
+          ? "E-commerce desde Cero"
+          : accessKeys.has("tiktok_shop")
+            ? "TikTok Shop"
+            : "Sin acceso";
+
+  const accessStatus = isAdmin || hasPaidAccess ? "Activo" : "Inactivo";
 
   const videoPosition = learningState
     ? formatVideoPosition(learningState.lastPositionSeconds)
@@ -128,7 +144,7 @@ export default async function DashboardPage() {
                   <div className="mt-6 flex flex-col gap-3 sm:flex-row">
                     <Link
                       href={`/cursos/${learningState.course.slug}/${learningState.lesson.slug}`}
-                      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#1f211f] px-5 text-sm font-semibold text-white hover:bg-[#30332f]"
+                      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#1f211f] px-5 text-sm font-semibold !text-white hover:bg-[#30332f]"
                     >
                       Continuar lección
                       <ArrowRight size={16} />
@@ -159,7 +175,7 @@ export default async function DashboardPage() {
 
               <Link
                 href="/cursos"
-                className="mt-6 inline-flex min-h-11 items-center gap-2 rounded-lg bg-[#1f211f] px-5 text-sm font-semibold text-white"
+                className="mt-6 inline-flex min-h-11 items-center gap-2 rounded-lg bg-[#1f211f] px-5 text-sm font-semibold !text-white"
               >
                 Abrir Academia
                 <ArrowRight size={16} />
@@ -241,12 +257,12 @@ export default async function DashboardPage() {
           <section className="rounded-2xl bg-[#1f211f] p-6 text-white">
             <ShieldCheck size={27} className="text-[#8db5a0]" />
 
-            <p className="editorial-label mt-5 text-[#b7bbb4]">Membresía</p>
+            <p className="editorial-label mt-5 text-[#b7bbb4]">Acceso</p>
 
-            <h2 className="mt-2 text-2xl font-semibold">{planLabel}</h2>
+            <h2 className="mt-2 text-2xl font-semibold">{accessLabel}</h2>
 
             <p className="mt-3 text-sm leading-6 text-[#b7bbb4]">
-              Estado: {subscription?.status ?? "inactive"}
+              Estado: {accessStatus}
             </p>
 
             {profile?.role === "admin" ? (
