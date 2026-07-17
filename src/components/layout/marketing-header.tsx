@@ -8,7 +8,7 @@ export function MarketingHeader() {
           href="/"
           className="text-base font-bold tracking-[-0.04em] text-[#1f211f]"
         >
-          MERCADO UNIVERSITY
+          CURSOCAPITAL
         </Link>
 
         <nav className="hidden items-center gap-8 md:flex">
