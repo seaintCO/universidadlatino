@@ -1,7 +1,11 @@
 ﻿import Link from "next/link";
 import { notFound } from "next/navigation";
+import { CheckCircle2, Circle } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { CompleteLessonButton } from "@/components/lessons/complete-lesson-button";
+import { LessonBookmarkButton } from "@/components/lessons/lesson-bookmark-button";
+import { LessonNotesPanel } from "@/components/lessons/lesson-notes-panel";
+import { LessonActivityTracker } from "@/components/lessons/lesson-activity-tracker";
 
 type LessonPageProps = {
   params: Promise<{
@@ -23,6 +27,13 @@ type LessonRecord = {
   youtube_creator_name: string | null;
   spanish_summary: unknown;
   action_steps: unknown;
+  sort_order: number;
+};
+
+type SidebarLesson = {
+  id: string;
+  slug: string;
+  title: string;
   sort_order: number;
 };
 
@@ -75,42 +86,87 @@ export default async function LessonPage({ params }: LessonPageProps) {
 
   const lesson = lessonData as LessonRecord;
 
-  const [{ data: moduleData }, { data: moduleLessons, error: lessonsError }] =
-    await Promise.all([
-      supabase
-        .from("mu_course_modules")
-        .select("id, title, sort_order")
-        .eq("id", lesson.module_id)
-        .maybeSingle(),
+  const [
+    moduleResult,
+    moduleLessonsResult,
+    progressResult,
+    noteResult,
+    bookmarkResult,
+  ] = await Promise.all([
+    supabase
+      .from("mu_course_modules")
+      .select("id, title, sort_order")
+      .eq("id", lesson.module_id)
+      .maybeSingle(),
 
-      supabase
-        .from("mu_lessons")
-        .select("id, slug, title, sort_order")
-        .eq("module_id", lesson.module_id)
-        .eq("is_published", true)
-        .order("sort_order", { ascending: true }),
-    ]);
+    supabase
+      .from("mu_lessons")
+      .select("id, slug, title, sort_order")
+      .eq("module_id", lesson.module_id)
+      .eq("is_published", true)
+      .order("sort_order", { ascending: true }),
 
-  if (lessonsError) {
-    throw new Error(`Unable to load lessons: ${lessonsError.message}`);
+    user
+      ? supabase
+          .from("mu_lesson_progress")
+          .select("lesson_id, status")
+          .eq("user_id", user.id)
+          .eq("course_id", course.id)
+      : Promise.resolve({
+          data: [],
+          error: null,
+        }),
+
+    user
+      ? supabase
+          .from("mu_lesson_notes")
+          .select("body")
+          .eq("user_id", user.id)
+          .eq("lesson_id", lesson.id)
+          .order("updated_at", { ascending: false })
+          .limit(1)
+          .maybeSingle()
+      : Promise.resolve({
+          data: null,
+          error: null,
+        }),
+
+    user
+      ? supabase
+          .from("mu_lesson_bookmarks")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("lesson_id", lesson.id)
+          .maybeSingle()
+      : Promise.resolve({
+          data: null,
+          error: null,
+        }),
+  ]);
+
+  if (moduleLessonsResult.error) {
+    throw new Error(
+      `Unable to load lessons: ${moduleLessonsResult.error.message}`,
+    );
   }
 
-  let initiallyCompleted = false;
+  const moduleData = moduleResult.data;
+  const lessons = (moduleLessonsResult.data ?? []) as SidebarLesson[];
 
-  if (user) {
-    const { data: progress } = await supabase
-      .from("mu_lesson_progress")
-      .select("status")
-      .eq("user_id", user.id)
-      .eq("lesson_id", lesson.id)
-      .maybeSingle();
+  const completedLessonIds = new Set(
+    (progressResult.data ?? [])
+      .filter((item) => item.status === "completed")
+      .map((item) => item.lesson_id),
+  );
 
-    initiallyCompleted = progress?.status === "completed";
-  }
+  const initiallyCompleted = completedLessonIds.has(lesson.id);
+  const initialNote = noteResult.data?.body ?? "";
+  const initiallyBookmarked = Boolean(bookmarkResult.data);
 
-  const lessons = moduleLessons ?? [];
   const currentIndex = lessons.findIndex((item) => item.id === lesson.id);
+
   const previousLesson = currentIndex > 0 ? lessons[currentIndex - 1] : null;
+
   const nextLesson =
     currentIndex >= 0 && currentIndex < lessons.length - 1
       ? lessons[currentIndex + 1]
@@ -121,6 +177,13 @@ export default async function LessonPage({ params }: LessonPageProps) {
 
   return (
     <div className="min-h-screen bg-[#f7f5f0]">
+      <LessonActivityTracker
+        courseId={course.id}
+        courseSlug={course.slug}
+        lessonId={lesson.id}
+        lessonSlug={lesson.slug}
+      />
+
       <header className="border-b border-[#ddd9d0] bg-white">
         <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between px-4 md:px-6">
           <Link
@@ -158,22 +221,36 @@ export default async function LessonPage({ params }: LessonPageProps) {
           <nav className="max-h-[45vh] space-y-1 overflow-y-auto p-3 lg:max-h-[calc(100vh-9rem)]">
             {lessons.map((item) => {
               const isActive = item.id === lesson.id;
+              const isCompleted = completedLessonIds.has(item.id);
 
               return (
                 <Link
                   key={item.id}
                   href={`/cursos/${course.slug}/${item.slug}`}
-                  className={`block rounded-lg px-3 py-3 text-sm transition-colors ${
+                  className={`flex items-start gap-3 rounded-lg px-3 py-3 text-sm transition-colors ${
                     isActive
                       ? "bg-[#e3ece7] font-semibold text-[#254f3f]"
                       : "text-[#686c66] hover:bg-white hover:text-[#1f211f]"
                   }`}
                 >
-                  <span className="mr-2 text-xs text-[#8b8f89]">
-                    {item.sort_order}.
-                  </span>
+                  {isCompleted ? (
+                    <CheckCircle2
+                      className="mt-0.5 shrink-0 text-[#2f6650]"
+                      size={17}
+                    />
+                  ) : (
+                    <Circle
+                      className="mt-0.5 shrink-0 text-[#b8bbb5]"
+                      size={17}
+                    />
+                  )}
 
-                  {item.title}
+                  <span>
+                    <span className="mr-1.5 text-xs text-[#8b8f89]">
+                      {item.sort_order}.
+                    </span>
+                    {item.title}
+                  </span>
                 </Link>
               );
             })}
@@ -290,6 +367,14 @@ export default async function LessonPage({ params }: LessonPageProps) {
                     </p>
                   )}
                 </section>
+
+                <LessonNotesPanel
+                  courseId={course.id}
+                  courseSlug={course.slug}
+                  lessonId={lesson.id}
+                  lessonSlug={lesson.slug}
+                  initialNote={initialNote}
+                />
               </div>
 
               <aside className="space-y-5">
@@ -307,6 +392,16 @@ export default async function LessonPage({ params }: LessonPageProps) {
                     lessonSlug={lesson.slug}
                     initiallyCompleted={initiallyCompleted}
                   />
+
+                  <div className="mt-3">
+                    <LessonBookmarkButton
+                      courseId={course.id}
+                      courseSlug={course.slug}
+                      lessonId={lesson.id}
+                      lessonSlug={lesson.slug}
+                      initiallyBookmarked={initiallyBookmarked}
+                    />
+                  </div>
                 </section>
 
                 <section className="rounded-2xl border border-[#ddd9d0] bg-white p-5">
