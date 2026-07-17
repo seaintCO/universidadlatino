@@ -1,9 +1,16 @@
-﻿import "server-only";
+import "server-only";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import {
   moduleSlugToPurchaseKey,
   type PurchaseKey,
 } from "@/lib/payments/catalog";
+
+export type AccessContext = {
+  role: string | null;
+  keys: Set<PurchaseKey>;
+  isAdmin: boolean;
+};
 
 export async function getUserAccessKeys(
   userId: string,
@@ -21,9 +28,52 @@ export async function getUserAccessKeys(
     return new Set();
   }
 
-  return new Set(
-    (data ?? []).map((row) => row.access_key as PurchaseKey),
+  return new Set((data ?? []).map((row) => row.access_key as PurchaseKey));
+}
+
+export async function getUserAccessContext(
+  userId: string,
+): Promise<AccessContext> {
+  const supabase = await createClient();
+
+  const [{ data: profile, error: profileError }, keys] = await Promise.all([
+    supabase.from("mu_profiles").select("role").eq("id", userId).maybeSingle(),
+    getUserAccessKeys(userId),
+  ]);
+
+  if (profileError) {
+    console.error("Unable to load user role:", profileError.message);
+  }
+
+  const role = profile?.role ?? null;
+
+  return {
+    role,
+    keys,
+    isAdmin: role === "admin",
+  };
+}
+
+export function canAccessPurchaseKey(
+  context: AccessContext,
+  purchaseKey: PurchaseKey,
+) {
+  return (
+    context.isAdmin ||
+    context.keys.has("bundle") ||
+    context.keys.has(purchaseKey)
   );
+}
+
+export function canAccessModuleSlug(
+  context: AccessContext,
+  moduleSlug: string,
+) {
+  const purchaseKey = moduleSlugToPurchaseKey(moduleSlug);
+
+  return purchaseKey
+    ? canAccessPurchaseKey(context, purchaseKey)
+    : context.isAdmin;
 }
 
 export async function userCanAccessModule(
@@ -31,17 +81,40 @@ export async function userCanAccessModule(
   moduleSlug: string,
   role?: string | null,
 ) {
-  if (role === "admin") {
-    return true;
-  }
+  const keys = await getUserAccessKeys(userId);
+  const context: AccessContext = {
+    role: role ?? null,
+    keys,
+    isAdmin: role === "admin",
+  };
 
-  const requiredKey = moduleSlugToPurchaseKey(moduleSlug);
+  return canAccessModuleSlug(context, moduleSlug);
+}
 
-  if (!requiredKey) {
+export async function userCanAccessLesson(userId: string, lessonId: string) {
+  const admin = createAdminClient();
+
+  const { data: lesson, error } = await admin
+    .from("mu_lessons")
+    .select("module_id")
+    .eq("id", lessonId)
+    .maybeSingle();
+
+  if (error || !lesson) {
     return false;
   }
 
-  const keys = await getUserAccessKeys(userId);
+  const { data: moduleData, error: moduleError } = await admin
+    .from("mu_course_modules")
+    .select("slug")
+    .eq("id", lesson.module_id)
+    .maybeSingle();
 
-  return keys.has("bundle") || keys.has(requiredKey);
+  if (moduleError || !moduleData) {
+    return false;
+  }
+
+  const context = await getUserAccessContext(userId);
+
+  return canAccessModuleSlug(context, moduleData.slug);
 }

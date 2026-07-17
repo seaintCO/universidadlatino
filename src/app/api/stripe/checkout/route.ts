@@ -1,4 +1,4 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -33,6 +33,30 @@ export async function POST(request: Request) {
       );
     }
 
+    const { data: existingAccess, error: accessError } = await supabase
+      .from("mu_course_access")
+      .select("access_key")
+      .eq("user_id", user.id)
+      .eq("status", "active");
+
+    if (accessError) {
+      throw new Error(
+        `Unable to verify existing access: ${accessError.message}`,
+      );
+    }
+
+    const ownedKeys = new Set(
+      (existingAccess ?? []).map((row) => row.access_key),
+    );
+    const alreadyOwned = ownedKeys.has("bundle") || ownedKeys.has(body.product);
+
+    if (alreadyOwned) {
+      return NextResponse.json({
+        url: "/dashboard",
+        alreadyOwned: true,
+      });
+    }
+
     const stripeSecret = process.env.STRIPE_SECRET_KEY;
 
     if (!stripeSecret) {
@@ -41,8 +65,7 @@ export async function POST(request: Request) {
 
     const stripe = new Stripe(stripeSecret);
     const configuredOrigin =
-      process.env.NEXT_PUBLIC_APP_URL ??
-      process.env.NEXT_PUBLIC_SITE_URL;
+      process.env.NEXT_PUBLIC_APP_URL ?? process.env.NEXT_PUBLIC_SITE_URL;
     const origin = configuredOrigin ?? new URL(request.url).origin;
     const product = body.product;
 

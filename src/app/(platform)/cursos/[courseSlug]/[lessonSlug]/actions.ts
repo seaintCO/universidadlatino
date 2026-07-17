@@ -1,7 +1,8 @@
-﻿"use server";
+"use server";
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { userCanAccessLesson } from "@/lib/payments/access";
 
 type LessonInput = {
   courseId: string;
@@ -54,6 +55,13 @@ export async function completeLesson(input: LessonInput) {
     };
   }
 
+  if (!(await userCanAccessLesson(user.id, input.lessonId))) {
+    return {
+      success: false,
+      message: "Compra este curso para guardar tu progreso.",
+    };
+  }
+
   const now = new Date().toISOString();
 
   const { data: existingProgress } = await supabase
@@ -103,6 +111,12 @@ export async function markLessonViewed(input: LessonInput) {
   const { supabase, user } = await requireAuthenticatedUser();
 
   if (!user) {
+    return {
+      success: false,
+    };
+  }
+
+  if (!(await userCanAccessLesson(user.id, input.lessonId))) {
     return {
       success: false,
     };
@@ -166,6 +180,13 @@ export async function saveLessonNote(input: SaveNoteInput) {
     return {
       success: false,
       message: "Debes iniciar sesión para guardar notas.",
+    };
+  }
+
+  if (!(await userCanAccessLesson(user.id, input.lessonId))) {
+    return {
+      success: false,
+      message: "Compra este curso para guardar notas.",
     };
   }
 
@@ -261,6 +282,14 @@ export async function toggleLessonBookmark(input: LessonInput) {
       success: false,
       bookmarked: false,
       message: "Debes iniciar sesión para guardar favoritos.",
+    };
+  }
+
+  if (!(await userCanAccessLesson(user.id, input.lessonId))) {
+    return {
+      success: false,
+      bookmarked: false,
+      message: "Compra este curso para guardar favoritos.",
     };
   }
 

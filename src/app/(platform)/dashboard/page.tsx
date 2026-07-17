@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
   ArrowRight,
@@ -10,7 +10,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { getCurrentProfile, requireUser } from "@/lib/auth/session";
-import { getUserAccessKeys } from "@/lib/payments/access";
+import { getUserAccessContext } from "@/lib/payments/access";
 import {
   getDashboardLearningState,
   getLearningActivityStats,
@@ -32,21 +32,20 @@ function formatVideoPosition(seconds: number) {
 export default async function DashboardPage() {
   const user = await requireUser();
 
-  const [profile, accessKeys, learningState, activityStats] = await Promise.all(
-    [
-      getCurrentProfile(),
-      getUserAccessKeys(user.id),
-      getDashboardLearningState(user.id),
-      getLearningActivityStats(user.id),
-    ],
-  );
+  const [profile, accessContext] = await Promise.all([
+    getCurrentProfile(),
+    getUserAccessContext(user.id),
+  ]);
 
-  const isAdmin = profile?.role === "admin";
-  const hasPaidAccess = accessKeys.size > 0;
-
-  if (!isAdmin && !hasPaidAccess) {
+  if (!accessContext.isAdmin && accessContext.keys.size === 0) {
     redirect("/?purchase_required=1#precios");
   }
+
+  const learningState = await getDashboardLearningState(user.id, accessContext);
+  const activityStats = await getLearningActivityStats(
+    user.id,
+    learningState?.accessibleLessonIds ?? [],
+  );
 
   const name =
     profile?.display_name ??
@@ -54,19 +53,17 @@ export default async function DashboardPage() {
     user.email?.split("@")[0] ??
     "Estudiante";
 
-  const accessLabel = isAdmin
+  const accessLabel = accessContext.isAdmin
     ? "Acceso administrativo"
-    : accessKeys.has("bundle")
+    : accessContext.keys.has("bundle")
       ? "Acceso completo"
-      : accessKeys.has("trading")
+      : accessContext.keys.has("trading")
         ? "Trading desde Cero"
-        : accessKeys.has("ecommerce")
+        : accessContext.keys.has("ecommerce")
           ? "E-commerce desde Cero"
-          : accessKeys.has("tiktok_shop")
+          : accessContext.keys.has("tiktok_shop")
             ? "TikTok Shop"
             : "Sin acceso";
-
-  const accessStatus = isAdmin || hasPaidAccess ? "Activo" : "Inactivo";
 
   const videoPosition = learningState
     ? formatVideoPosition(learningState.lastPositionSeconds)
@@ -90,7 +87,7 @@ export default async function DashboardPage() {
         <form action={logout}>
           <button
             type="submit"
-            className="min-h-11 rounded-lg border border-[#ddd9d0] bg-white px-4 text-sm font-semibold hover:bg-[#efede7]"
+            className="min-h-11 rounded-lg border border-[#ddd9d0] bg-white px-4 text-sm font-semibold text-[#1f211f] hover:bg-[#efede7]"
           >
             Cerrar sesión
           </button>
@@ -152,7 +149,7 @@ export default async function DashboardPage() {
 
                     <Link
                       href={`/cursos/${learningState.course.slug}`}
-                      className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[#ddd9d0] bg-white px-5 text-sm font-semibold hover:bg-[#f7f5f0]"
+                      className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[#ddd9d0] bg-white px-5 text-sm font-semibold !text-[#1f211f] hover:bg-[#f7f5f0]"
                     >
                       Ver curso
                     </Link>
@@ -165,12 +162,11 @@ export default async function DashboardPage() {
               <BookOpen className="mx-auto text-[#686c66]" size={34} />
 
               <h2 className="mt-5 text-2xl font-semibold tracking-[-0.03em]">
-                Empieza tu primera lección
+                Tu contenido se está preparando
               </h2>
 
               <p className="mx-auto mt-3 max-w-md text-sm leading-7 text-[#686c66]">
-                Explora la Academia y selecciona el curso con el que quieres
-                comenzar.
+                Abre la Academia para ver los módulos incluidos en tu compra.
               </p>
 
               <Link
@@ -259,14 +255,16 @@ export default async function DashboardPage() {
 
             <p className="editorial-label mt-5 text-[#b7bbb4]">Acceso</p>
 
-            <h2 className="mt-2 text-2xl font-semibold">{accessLabel}</h2>
+            <h2 className="mt-2 text-2xl font-semibold text-white">
+              {accessLabel}
+            </h2>
 
             <p className="mt-3 text-sm leading-6 text-[#b7bbb4]">
-              Estado: {accessStatus}
+              Estado: Activo
             </p>
 
-            {profile?.role === "admin" ? (
-              <div className="mt-5 rounded-lg border border-[#4b4e49] p-3 text-sm">
+            {accessContext.isAdmin ? (
+              <div className="mt-5 rounded-lg border border-[#4b4e49] p-3 text-sm text-white">
                 Acceso administrativo activo
               </div>
             ) : null}

@@ -1,7 +1,13 @@
-﻿import Link from "next/link";
-import { notFound } from "next/navigation";
+import Link from "next/link";
+import { notFound, redirect } from "next/navigation";
 import { CheckCircle2, Circle } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { requireUser } from "@/lib/auth/session";
+import {
+  canAccessModuleSlug,
+  getUserAccessContext,
+} from "@/lib/payments/access";
 import { CompleteLessonButton } from "@/components/lessons/complete-lesson-button";
 import { LessonBookmarkButton } from "@/components/lessons/lesson-bookmark-button";
 import { LessonNotesPanel } from "@/components/lessons/lesson-notes-panel";
@@ -47,13 +53,11 @@ function stringList(value: unknown): string[] {
 
 export default async function LessonPage({ params }: LessonPageProps) {
   const { courseSlug, lessonSlug } = await params;
+  const user = await requireUser();
   const supabase = await createClient();
+  const admin = createAdminClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const { data: course, error: courseError } = await supabase
+  const { data: course, error: courseError } = await admin
     .from("mu_courses")
     .select("id, slug, title, category")
     .eq("slug", courseSlug)
@@ -67,13 +71,14 @@ export default async function LessonPage({ params }: LessonPageProps) {
     notFound();
   }
 
-  const { data: lessonData, error: lessonError } = await supabase
+  const { data: lessonData, error: lessonError } = await admin
     .from("mu_lessons")
     .select(
       "id, course_id, module_id, slug, title, description, duration_seconds, youtube_video_id, youtube_url, youtube_creator_name, spanish_summary, action_steps, sort_order",
     )
     .eq("course_id", course.id)
     .eq("slug", lessonSlug)
+    .eq("is_published", true)
     .maybeSingle();
 
   if (lessonError) {
@@ -86,63 +91,54 @@ export default async function LessonPage({ params }: LessonPageProps) {
 
   const lesson = lessonData as LessonRecord;
 
-  const [
-    moduleResult,
-    moduleLessonsResult,
-    progressResult,
-    noteResult,
-    bookmarkResult,
-  ] = await Promise.all([
-    supabase
-      .from("mu_course_modules")
-      .select("id, title, sort_order")
-      .eq("id", lesson.module_id)
-      .maybeSingle(),
+  const { data: moduleData, error: moduleError } = await admin
+    .from("mu_course_modules")
+    .select("id, slug, title, sort_order")
+    .eq("id", lesson.module_id)
+    .eq("is_published", true)
+    .maybeSingle();
 
-    supabase
-      .from("mu_lessons")
-      .select("id, slug, title, sort_order")
-      .eq("module_id", lesson.module_id)
-      .eq("is_published", true)
-      .order("sort_order", { ascending: true }),
+  if (moduleError || !moduleData) {
+    notFound();
+  }
 
-    user
-      ? supabase
-          .from("mu_lesson_progress")
-          .select("lesson_id, status")
-          .eq("user_id", user.id)
-          .eq("course_id", course.id)
-      : Promise.resolve({
-          data: [],
-          error: null,
-        }),
+  const accessContext = await getUserAccessContext(user.id);
 
-    user
-      ? supabase
-          .from("mu_lesson_notes")
-          .select("body")
-          .eq("user_id", user.id)
-          .eq("lesson_id", lesson.id)
-          .order("updated_at", { ascending: false })
-          .limit(1)
-          .maybeSingle()
-      : Promise.resolve({
-          data: null,
-          error: null,
-        }),
+  if (!canAccessModuleSlug(accessContext, moduleData.slug)) {
+    redirect(`/cursos/${course.slug}?locked=${moduleData.slug}`);
+  }
 
-    user
-      ? supabase
-          .from("mu_lesson_bookmarks")
-          .select("id")
-          .eq("user_id", user.id)
-          .eq("lesson_id", lesson.id)
-          .maybeSingle()
-      : Promise.resolve({
-          data: null,
-          error: null,
-        }),
-  ]);
+  const [moduleLessonsResult, progressResult, noteResult, bookmarkResult] =
+    await Promise.all([
+      admin
+        .from("mu_lessons")
+        .select("id, slug, title, sort_order")
+        .eq("module_id", lesson.module_id)
+        .eq("is_published", true)
+        .order("sort_order", { ascending: true }),
+
+      supabase
+        .from("mu_lesson_progress")
+        .select("lesson_id, status")
+        .eq("user_id", user.id)
+        .eq("course_id", course.id),
+
+      supabase
+        .from("mu_lesson_notes")
+        .select("body")
+        .eq("user_id", user.id)
+        .eq("lesson_id", lesson.id)
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+
+      supabase
+        .from("mu_lesson_bookmarks")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("lesson_id", lesson.id)
+        .maybeSingle(),
+    ]);
 
   if (moduleLessonsResult.error) {
     throw new Error(
@@ -150,28 +146,21 @@ export default async function LessonPage({ params }: LessonPageProps) {
     );
   }
 
-  const moduleData = moduleResult.data;
   const lessons = (moduleLessonsResult.data ?? []) as SidebarLesson[];
-
   const completedLessonIds = new Set(
     (progressResult.data ?? [])
       .filter((item) => item.status === "completed")
       .map((item) => item.lesson_id),
   );
-
   const initiallyCompleted = completedLessonIds.has(lesson.id);
   const initialNote = noteResult.data?.body ?? "";
   const initiallyBookmarked = Boolean(bookmarkResult.data);
-
   const currentIndex = lessons.findIndex((item) => item.id === lesson.id);
-
   const previousLesson = currentIndex > 0 ? lessons[currentIndex - 1] : null;
-
   const nextLesson =
     currentIndex >= 0 && currentIndex < lessons.length - 1
       ? lessons[currentIndex + 1]
       : null;
-
   const summaries = stringList(lesson.spanish_summary);
   const actionSteps = stringList(lesson.action_steps);
 
@@ -188,14 +177,14 @@ export default async function LessonPage({ params }: LessonPageProps) {
         <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between px-4 md:px-6">
           <Link
             href="/dashboard"
-            className="text-sm font-bold tracking-[-0.04em]"
+            className="text-sm font-bold tracking-[-0.04em] !text-[#1f211f]"
           >
-            MERCADO UNIVERSITY
+            CURSOCAPITAL
           </Link>
 
           <Link
             href={`/cursos/${course.slug}`}
-            className="text-sm font-semibold text-[#686c66] hover:text-[#1f211f]"
+            className="text-sm font-semibold !text-[#686c66] hover:!text-[#1f211f]"
           >
             Volver al curso
           </Link>
@@ -211,11 +200,9 @@ export default async function LessonPage({ params }: LessonPageProps) {
               {course.title}
             </h1>
 
-            {moduleData ? (
-              <p className="mt-2 text-sm text-[#686c66]">
-                Módulo {moduleData.sort_order}: {moduleData.title}
-              </p>
-            ) : null}
+            <p className="mt-2 text-sm text-[#686c66]">
+              Módulo {moduleData.sort_order}: {moduleData.title}
+            </p>
           </div>
 
           <nav className="max-h-[45vh] space-y-1 overflow-y-auto p-3 lg:max-h-[calc(100vh-9rem)]">
@@ -229,8 +216,8 @@ export default async function LessonPage({ params }: LessonPageProps) {
                   href={`/cursos/${course.slug}/${item.slug}`}
                   className={`flex items-start gap-3 rounded-lg px-3 py-3 text-sm transition-colors ${
                     isActive
-                      ? "bg-[#e3ece7] font-semibold text-[#254f3f]"
-                      : "text-[#686c66] hover:bg-white hover:text-[#1f211f]"
+                      ? "bg-[#e3ece7] font-semibold !text-[#254f3f]"
+                      : "!text-[#686c66] hover:bg-white hover:!text-[#1f211f]"
                   }`}
                 >
                   {isCompleted ? (
@@ -260,9 +247,7 @@ export default async function LessonPage({ params }: LessonPageProps) {
         <main className="min-w-0">
           <div className="mx-auto max-w-5xl px-4 py-6 md:px-8 md:py-10">
             <div className="mb-6">
-              <p className="editorial-label mb-2">
-                {moduleData?.title ?? "Lección"}
-              </p>
+              <p className="editorial-label mb-2">{moduleData.title}</p>
 
               <h1 className="text-3xl font-semibold tracking-[-0.04em] md:text-4xl">
                 {lesson.title}
@@ -305,7 +290,7 @@ export default async function LessonPage({ params }: LessonPageProps) {
                     href={lesson.youtube_url}
                     target="_blank"
                     rel="noreferrer"
-                    className="font-semibold text-[#2f6650] hover:text-[#254f3f]"
+                    className="font-semibold !text-[#2f6650] hover:!text-[#254f3f]"
                   >
                     Ver video original
                   </a>
@@ -355,7 +340,6 @@ export default async function LessonPage({ params }: LessonPageProps) {
                           <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#1f211f] text-xs font-bold text-white">
                             {index + 1}
                           </span>
-
                           {step}
                         </li>
                       ))}
@@ -411,7 +395,7 @@ export default async function LessonPage({ params }: LessonPageProps) {
                     {previousLesson ? (
                       <Link
                         href={`/cursos/${course.slug}/${previousLesson.slug}`}
-                        className="block rounded-lg border border-[#ddd9d0] px-4 py-3 text-sm font-semibold hover:bg-[#f7f5f0]"
+                        className="block rounded-lg border border-[#ddd9d0] px-4 py-3 text-sm font-semibold !text-[#1f211f] hover:bg-[#f7f5f0]"
                       >
                         ← {previousLesson.title}
                       </Link>
@@ -420,14 +404,14 @@ export default async function LessonPage({ params }: LessonPageProps) {
                     {nextLesson ? (
                       <Link
                         href={`/cursos/${course.slug}/${nextLesson.slug}`}
-                        className="block rounded-lg bg-[#1f211f] px-4 py-3 text-sm font-semibold text-white hover:bg-[#30332f]"
+                        className="block rounded-lg bg-[#1f211f] px-4 py-3 text-sm font-semibold !text-white hover:bg-[#30332f]"
                       >
                         {nextLesson.title} →
                       </Link>
                     ) : (
                       <Link
                         href={`/cursos/${course.slug}`}
-                        className="block rounded-lg bg-[#1f211f] px-4 py-3 text-sm font-semibold text-white hover:bg-[#30332f]"
+                        className="block rounded-lg bg-[#1f211f] px-4 py-3 text-sm font-semibold !text-white hover:bg-[#30332f]"
                       >
                         Volver al curso
                       </Link>

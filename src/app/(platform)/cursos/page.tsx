@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { BookOpen, Clock3, LockKeyhole } from "lucide-react";
 import { getCurrentProfile } from "@/lib/auth/session";
 import { getAllCoursesForAdmin, getPublishedCourses } from "@/lib/data/courses";
@@ -71,7 +71,7 @@ export default async function CoursesPage() {
 
                 <div className="mt-5 flex flex-wrap gap-4 text-xs font-medium text-[#686c66]">
                   <span className="flex items-center gap-1.5">
-                    <BookOpen size={15} />6 módulos
+                    <BookOpen size={15} />3 módulos
                   </span>
 
                   <span className="flex items-center gap-1.5">

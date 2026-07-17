@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   CheckCircle2,
@@ -8,6 +8,17 @@ import {
   PlayCircle,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { requireUser } from "@/lib/auth/session";
+import {
+  canAccessModuleSlug,
+  getUserAccessContext,
+} from "@/lib/payments/access";
+import {
+  moduleSlugToPurchaseKey,
+  purchaseCatalog,
+} from "@/lib/payments/catalog";
+import { CheckoutButton } from "@/components/payments/checkout-button";
 
 type CoursePageProps = {
   params: Promise<{
@@ -15,15 +26,39 @@ type CoursePageProps = {
   }>;
 };
 
+type LessonOutline = {
+  id: string;
+  slug: string;
+  title: string;
+  description: string | null;
+  duration_seconds: number;
+  sort_order: number;
+  is_published: boolean;
+};
+
+type ModuleOutline = {
+  id: string;
+  slug: string;
+  title: string;
+  description: string | null;
+  sort_order: number;
+  is_published: boolean;
+  mu_lessons: LessonOutline[] | null;
+  mu_quizzes: Array<{
+    id: string;
+    title: string;
+    is_published: boolean;
+  }> | null;
+};
+
 export default async function CoursePage({ params }: CoursePageProps) {
   const { courseSlug } = await params;
+  const user = await requireUser();
   const supabase = await createClient();
+  const admin = createAdminClient();
+  const accessContext = await getUserAccessContext(user.id);
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const { data: course, error: courseError } = await supabase
+  const { data: course, error: courseError } = await admin
     .from("mu_courses")
     .select(
       "id, slug, title, subtitle, description, category, level, estimated_hours",
@@ -39,7 +74,7 @@ export default async function CoursePage({ params }: CoursePageProps) {
     notFound();
   }
 
-  const { data: modules, error: modulesError } = await supabase
+  const { data: modulesData, error: modulesError } = await admin
     .from("mu_course_modules")
     .select(
       `
@@ -73,43 +108,49 @@ export default async function CoursePage({ params }: CoursePageProps) {
     throw new Error(`Unable to load modules: ${modulesError.message}`);
   }
 
-  let completedLessonIds = new Set<string>();
-
-  if (user) {
-    const { data: completedProgress } = await supabase
-      .from("mu_lesson_progress")
-      .select("lesson_id")
-      .eq("user_id", user.id)
-      .eq("course_id", course.id)
-      .eq("status", "completed");
-
-    completedLessonIds = new Set(
-      (completedProgress ?? []).map((progress) => progress.lesson_id),
-    );
-  }
-
-  const normalizedModules = (modules ?? []).map((module) => ({
+  const modules = ((modulesData ?? []) as ModuleOutline[]).map((module) => ({
     ...module,
+    unlocked: canAccessModuleSlug(accessContext, module.slug),
     lessons: [...(module.mu_lessons ?? [])].sort(
       (a, b) => a.sort_order - b.sort_order,
     ),
     quizzes: module.mu_quizzes ?? [],
   }));
 
-  const allPublishedLessons = normalizedModules.flatMap((module) =>
-    module.lessons.filter((lesson) => lesson.is_published),
+  const accessibleLessons = modules.flatMap((module) =>
+    module.unlocked
+      ? module.lessons.filter((lesson) => lesson.is_published)
+      : [],
   );
 
-  const completedCount = allPublishedLessons.filter((lesson) =>
+  let completedLessonIds = new Set<string>();
+
+  if (accessibleLessons.length > 0) {
+    const { data: completedProgress } = await supabase
+      .from("mu_lesson_progress")
+      .select("lesson_id")
+      .eq("user_id", user.id)
+      .eq("course_id", course.id)
+      .eq("status", "completed")
+      .in(
+        "lesson_id",
+        accessibleLessons.map((lesson) => lesson.id),
+      );
+
+    completedLessonIds = new Set(
+      (completedProgress ?? []).map((progress) => progress.lesson_id),
+    );
+  }
+
+  const completedCount = accessibleLessons.filter((lesson) =>
     completedLessonIds.has(lesson.id),
   ).length;
-
   const progress =
-    allPublishedLessons.length > 0
-      ? Math.round((completedCount / allPublishedLessons.length) * 100)
+    accessibleLessons.length > 0
+      ? Math.round((completedCount / accessibleLessons.length) * 100)
       : 0;
-
-  const firstAvailableLesson = allPublishedLessons[0] ?? null;
+  const firstAvailableLesson = accessibleLessons[0] ?? null;
+  const hasAnyAccess = accessContext.isAdmin || accessContext.keys.size > 0;
 
   return (
     <main className="min-h-screen bg-[#f7f5f0] px-4 py-8 md:px-8 md:py-12">
@@ -117,7 +158,7 @@ export default async function CoursePage({ params }: CoursePageProps) {
         <header className="rounded-2xl bg-[#1f211f] px-6 py-10 text-white md:px-10 md:py-14">
           <p className="editorial-label text-[#b7bbb4]">{course.category}</p>
 
-          <h1 className="mt-4 max-w-4xl text-4xl font-semibold tracking-[-0.05em] md:text-6xl">
+          <h1 className="mt-4 max-w-4xl text-4xl font-semibold tracking-[-0.05em] text-white md:text-6xl">
             {course.title}
           </h1>
 
@@ -130,7 +171,7 @@ export default async function CoursePage({ params }: CoursePageProps) {
           </p>
 
           <div className="mt-7 flex flex-wrap gap-5 text-sm font-medium text-[#d8dbd5]">
-            <span>{normalizedModules.length} módulos</span>
+            <span>{modules.length} módulos</span>
 
             <span className="flex items-center gap-2">
               <Clock3 size={17} />
@@ -143,7 +184,8 @@ export default async function CoursePage({ params }: CoursePageProps) {
           <div className="mt-8 max-w-xl">
             <div className="mb-2 flex justify-between text-xs font-semibold text-[#b7bbb4]">
               <span>
-                {completedCount} de {allPublishedLessons.length} lecciones
+                {completedCount} de {accessibleLessons.length} lecciones
+                incluidas
               </span>
               <span>{progress}%</span>
             </div>
@@ -151,9 +193,7 @@ export default async function CoursePage({ params }: CoursePageProps) {
             <div className="h-2 overflow-hidden rounded-full bg-white/15">
               <div
                 className="h-full rounded-full bg-[#79a98e]"
-                style={{
-                  width: `${progress}%`,
-                }}
+                style={{ width: `${progress}%` }}
               />
             </div>
           </div>
@@ -161,30 +201,45 @@ export default async function CoursePage({ params }: CoursePageProps) {
           {firstAvailableLesson ? (
             <Link
               href={`/cursos/${course.slug}/${firstAvailableLesson.slug}`}
-              className="mt-8 inline-flex min-h-12 items-center gap-2 rounded-lg bg-white px-6 text-sm font-semibold text-[#1f211f] hover:bg-[#efede7]"
+              className="mt-8 inline-flex min-h-12 items-center gap-2 rounded-lg bg-white px-6 text-sm font-semibold !text-[#1f211f] hover:bg-[#efede7]"
             >
               <PlayCircle size={18} />
               {completedCount > 0 ? "Continuar aprendiendo" : "Comenzar curso"}
             </Link>
-          ) : null}
+          ) : (
+            <div className="mt-8 max-w-sm">
+              <CheckoutButton
+                product="bundle"
+                className="bg-white !text-[#1f211f] hover:bg-[#efede7]"
+              >
+                Comprar acceso completo por $100
+              </CheckoutButton>
+            </div>
+          )}
         </header>
 
+        {!hasAnyAccess ? (
+          <div className="mt-6 rounded-2xl border border-[#c9dacf] bg-[#edf4ef] p-5 text-sm leading-7 text-[#254f3f]">
+            Tu cuenta está activa, pero todavía no has comprado un curso. Elige
+            una ruta abajo para abrir Stripe Checkout.
+          </div>
+        ) : null}
+
         <div className="mt-8 space-y-6">
-          {normalizedModules.map((module) => {
+          {modules.map((module) => {
             const publishedLessons = module.lessons.filter(
               (lesson) => lesson.is_published,
             );
-
-            const draftLessonCount =
-              module.lessons.length - publishedLessons.length;
-
-            const completedModuleLessons = publishedLessons.filter((lesson) =>
-              completedLessonIds.has(lesson.id),
-            ).length;
-
+            const completedModuleLessons = module.unlocked
+              ? publishedLessons.filter((lesson) =>
+                  completedLessonIds.has(lesson.id),
+                ).length
+              : 0;
             const moduleComplete =
+              module.unlocked &&
               publishedLessons.length > 0 &&
               completedModuleLessons === publishedLessons.length;
+            const purchaseKey = moduleSlugToPurchaseKey(module.slug);
 
             return (
               <section
@@ -192,7 +247,7 @@ export default async function CoursePage({ params }: CoursePageProps) {
                 className="overflow-hidden rounded-2xl border border-[#ddd9d0] bg-white"
               >
                 <div className="border-b border-[#ddd9d0] p-6 md:p-8">
-                  <div className="flex flex-col justify-between gap-5 sm:flex-row">
+                  <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-start">
                     <div>
                       <p className="editorial-label">
                         Módulo {module.sort_order}
@@ -215,9 +270,24 @@ export default async function CoursePage({ params }: CoursePageProps) {
                           <CheckCircle2 size={15} />
                           Completado
                         </span>
-                      ) : (
+                      ) : module.unlocked ? (
                         <span className="text-sm font-semibold text-[#686c66]">
                           {completedModuleLessons}/{publishedLessons.length}
+                        </span>
+                      ) : purchaseKey ? (
+                        <div className="w-full min-w-[220px] sm:w-auto">
+                          <CheckoutButton
+                            product={purchaseKey}
+                            className="bg-[#1f211f] !text-white hover:bg-[#30332f]"
+                          >
+                            Comprar por{" "}
+                            {purchaseCatalog[purchaseKey].priceLabel}
+                          </CheckoutButton>
+                        </div>
+                      ) : (
+                        <span className="inline-flex items-center gap-2 rounded-full bg-[#efede7] px-3 py-1.5 text-xs font-bold text-[#686c66]">
+                          <LockKeyhole size={14} />
+                          Bloqueado
                         </span>
                       )}
                     </div>
@@ -225,10 +295,10 @@ export default async function CoursePage({ params }: CoursePageProps) {
                 </div>
 
                 <div className="divide-y divide-[#eeeae2]">
-                  {module.lessons.map((lesson) => {
+                  {publishedLessons.map((lesson) => {
                     const completed = completedLessonIds.has(lesson.id);
 
-                    if (!lesson.is_published) {
+                    if (!module.unlocked) {
                       return (
                         <div
                           key={lesson.id}
@@ -240,8 +310,9 @@ export default async function CoursePage({ params }: CoursePageProps) {
                             <p className="truncate text-sm font-semibold">
                               {lesson.sort_order}. {lesson.title}
                             </p>
-
-                            <p className="mt-1 text-xs">Próximamente</p>
+                            <p className="mt-1 text-xs">
+                              Compra este curso para desbloquear la lección
+                            </p>
                           </div>
                         </div>
                       );
@@ -251,7 +322,7 @@ export default async function CoursePage({ params }: CoursePageProps) {
                       <Link
                         key={lesson.id}
                         href={`/cursos/${course.slug}/${lesson.slug}`}
-                        className="flex min-h-16 items-center gap-4 px-6 py-4 transition-colors hover:bg-[#faf9f6] md:px-8"
+                        className="flex min-h-16 items-center gap-4 px-6 py-4 !text-[#1f211f] transition-colors hover:bg-[#faf9f6] md:px-8"
                       >
                         {completed ? (
                           <CheckCircle2
@@ -289,29 +360,24 @@ export default async function CoursePage({ params }: CoursePageProps) {
                   })}
                 </div>
 
-                {module.quizzes.length > 0 ? (
+                {module.quizzes.some((quiz) => quiz.is_published) ? (
                   <div className="border-t border-[#ddd9d0] bg-[#faf9f6] px-6 py-4 md:px-8">
                     <div className="flex items-center justify-between gap-4">
                       <div>
                         <p className="text-sm font-semibold">
                           Evaluación del módulo
                         </p>
-
                         <p className="mt-1 text-xs text-[#686c66]">
-                          Completa las lecciones antes de tomar el quiz.
+                          {module.unlocked
+                            ? "Completa las lecciones antes de tomar el quiz."
+                            : "Disponible después de comprar esta ruta."}
                         </p>
                       </div>
 
                       <span className="rounded-full border border-[#ddd9d0] bg-white px-3 py-1.5 text-xs font-semibold text-[#686c66]">
-                        Quiz
+                        {module.unlocked ? "Quiz" : "Bloqueado"}
                       </span>
                     </div>
-                  </div>
-                ) : null}
-
-                {publishedLessons.length === 0 && draftLessonCount > 0 ? (
-                  <div className="border-t border-[#ddd9d0] bg-[#faf9f6] px-6 py-4 text-sm text-[#686c66] md:px-8">
-                    Este módulo está preparado y esperando sus videos.
                   </div>
                 ) : null}
               </section>

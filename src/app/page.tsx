@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import {
   ArrowRight,
   Award,
@@ -10,10 +10,18 @@ import {
 } from "lucide-react";
 import { MarketingHeader } from "@/components/layout/marketing-header";
 import { UniversidadLatinoHero } from "@/components/marketing/universidad-latino-hero";
-import { EliteCtaButton } from "@/components/marketing/elite-cta-button";
 import { ReviewMarquee } from "@/components/marketing/review-marquee";
+import { CheckoutButton } from "@/components/payments/checkout-button";
+import type { PurchaseKey } from "@/lib/payments/catalog";
 
-const launchCourses = [
+const launchCourses: Array<{
+  id: Exclude<PurchaseKey, "bundle">;
+  number: string;
+  title: string;
+  description: string;
+  lessons: number;
+  price: number;
+}> = [
   {
     id: "trading",
     number: "01",
@@ -22,7 +30,6 @@ const launchCourses = [
       "Aprende cómo funcionan los mercados, cómo leer una gráfica y cómo comenzar a operar con una estructura clara.",
     lessons: 8,
     price: 50,
-    href: "/cursos/mercado-university",
   },
   {
     id: "ecommerce",
@@ -32,17 +39,15 @@ const launchCourses = [
       "Aprende a encontrar productos, construir una tienda, crear una oferta y preparar tu negocio para vender online.",
     lessons: 8,
     price: 50,
-    href: "/cursos/mercado-university",
   },
   {
-    id: "tiktok-shop",
+    id: "tiktok_shop",
     number: "03",
     title: "Ganar Dinero con TikTok Shop",
     description:
       "Aprende a encontrar productos, crear contenido y generar comisiones como creador afiliado de TikTok Shop.",
     lessons: 8,
     price: 50,
-    href: "/cursos/mercado-university",
   },
 ];
 
@@ -159,8 +164,8 @@ export default function HomePage() {
               </h2>
 
               <p className="mt-4 max-w-2xl text-sm leading-7 text-[#686c66] md:text-base">
-                Compra una ruta individual o accede a las tres dentro de Mercado
-                University.
+                Compra una ruta individual o accede a las tres dentro de
+                CursoCapital.
               </p>
             </div>
 
@@ -203,13 +208,13 @@ export default function HomePage() {
                 </div>
 
                 <div className="mt-auto pt-10">
-                  <Link
-                    href={course.href}
-                    className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-[#ddd9d0] bg-[#faf9f6] px-5 text-sm font-semibold transition-colors group-hover:border-[#2f6650] group-hover:bg-[#2f6650] group-hover:text-white"
+                  <CheckoutButton
+                    product={course.id}
+                    className="border border-[#ddd9d0] bg-[#faf9f6] !text-[#1f211f] hover:border-[#2f6650] hover:bg-[#2f6650] hover:!text-white"
                   >
-                    Ver curso
+                    Comprar por ${course.price}
                     <ArrowRight size={16} />
-                  </Link>
+                  </CheckoutButton>
                 </div>
               </article>
             ))}
@@ -330,9 +335,15 @@ export default function HomePage() {
                   </li>
                 </ul>
 
-                <EliteCtaButton href="/evaluacion" className="mt-9 sm:w-full">
-                  Obtener los tres cursos
-                </EliteCtaButton>
+                <div className="mt-9">
+                  <CheckoutButton
+                    product="bundle"
+                    className="rounded-full border border-white/20 bg-white !text-[#1f211f] hover:scale-[1.01] hover:bg-[#efede7]"
+                  >
+                    Obtener los tres cursos por $100
+                    <ArrowRight size={17} />
+                  </CheckoutButton>
+                </div>
               </div>
             </div>
 

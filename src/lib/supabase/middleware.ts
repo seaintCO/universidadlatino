@@ -1,5 +1,6 @@
-﻿import { createServerClient } from "@supabase/ssr";
+import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { isPurchaseKey } from "@/lib/payments/catalog";
 
 const protectedPaths = [
   "/dashboard",
@@ -11,6 +12,7 @@ const protectedPaths = [
   "/notas",
   "/sesiones",
   "/admin",
+  "/checkout/continuar",
 ];
 
 export async function updateSession(request: NextRequest) {
@@ -67,11 +69,19 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (user && (pathname === "/login" || pathname === "/registro")) {
-    const dashboardUrl = request.nextUrl.clone();
-    dashboardUrl.pathname = "/dashboard";
-    dashboardUrl.search = "";
+    const purchase = request.nextUrl.searchParams.get("purchase");
+    const destinationUrl = request.nextUrl.clone();
 
-    return NextResponse.redirect(dashboardUrl);
+    if (isPurchaseKey(purchase)) {
+      destinationUrl.pathname = "/checkout/continuar";
+      destinationUrl.search = "";
+      destinationUrl.searchParams.set("purchase", purchase);
+    } else {
+      destinationUrl.pathname = "/dashboard";
+      destinationUrl.search = "";
+    }
+
+    return NextResponse.redirect(destinationUrl);
   }
 
   return response;

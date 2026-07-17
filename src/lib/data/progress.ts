@@ -1,4 +1,7 @@
-﻿import { createClient } from "@/lib/supabase/server";
+import "server-only";
+import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { canAccessModuleSlug, type AccessContext } from "@/lib/payments/access";
 
 type ProgressRow = {
   course_id: string;
@@ -19,6 +22,7 @@ type CourseRow = {
 
 type LessonRow = {
   id: string;
+  course_id: string;
   module_id: string;
   slug: string;
   title: string;
@@ -28,6 +32,7 @@ type LessonRow = {
 
 type ModuleRow = {
   id: string;
+  slug: string;
   title: string;
   sort_order: number;
 };
@@ -41,167 +46,150 @@ export type DashboardLearningState = {
   courseProgress: number;
   lastPositionSeconds: number;
   lastViewedAt: string | null;
+  accessibleLessonIds: string[];
 };
 
-export async function getDashboardLearningState(
-  userId: string,
-): Promise<DashboardLearningState | null> {
-  const supabase = await createClient();
+async function getAccessibleCatalog(context: AccessContext) {
+  const admin = createAdminClient();
 
-  const { data: latestProgressData, error: latestProgressError } =
-    await supabase
-      .from("mu_lesson_progress")
-      .select(
-        "course_id, lesson_id, status, progress_percent, last_position_seconds, last_viewed_at",
-      )
-      .eq("user_id", userId)
-      .order("last_viewed_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+  const { data: modulesData, error: modulesError } = await admin
+    .from("mu_course_modules")
+    .select("id, slug, title, sort_order, course_id")
+    .eq("is_published", true)
+    .order("sort_order", { ascending: true });
 
-  if (latestProgressError) {
-    console.error(
-      "Unable to load latest learning progress:",
-      latestProgressError.message,
-    );
-  }
-
-  const latestProgress = latestProgressData as ProgressRow | null;
-
-  if (!latestProgress) {
-    const { data: firstCourseData, error: firstCourseError } = await supabase
-      .from("mu_courses")
-      .select("id, slug, title, category, thumbnail_url")
-      .order("sort_order", { ascending: true })
-      .limit(1)
-      .maybeSingle();
-
-    if (firstCourseError || !firstCourseData) {
-      return null;
-    }
-
-    const firstCourse = firstCourseData as CourseRow;
-
-    const { data: firstLessonData, error: firstLessonError } = await supabase
-      .from("mu_lessons")
-      .select("id, module_id, slug, title, duration_seconds, sort_order")
-      .eq("course_id", firstCourse.id)
-      .eq("is_published", true)
-      .order("sort_order", { ascending: true })
-      .limit(1)
-      .maybeSingle();
-
-    if (firstLessonError || !firstLessonData) {
-      return null;
-    }
-
-    const firstLesson = firstLessonData as LessonRow;
-
-    const { data: firstModuleData } = await supabase
-      .from("mu_course_modules")
-      .select("id, title, sort_order")
-      .eq("id", firstLesson.module_id)
-      .maybeSingle();
-
-    const { count: totalLessons } = await supabase
-      .from("mu_lessons")
-      .select("id", {
-        count: "exact",
-        head: true,
-      })
-      .eq("course_id", firstCourse.id)
-      .eq("is_published", true);
-
-    return {
-      course: firstCourse,
-      lesson: firstLesson,
-      module: (firstModuleData as ModuleRow | null) ?? null,
-      completedLessons: 0,
-      totalLessons: totalLessons ?? 0,
-      courseProgress: 0,
-      lastPositionSeconds: 0,
-      lastViewedAt: null,
-    };
-  }
-
-  const [courseResult, lessonResult, completedResult, totalResult] =
-    await Promise.all([
-      supabase
-        .from("mu_courses")
-        .select("id, slug, title, category, thumbnail_url")
-        .eq("id", latestProgress.course_id)
-        .maybeSingle(),
-
-      supabase
-        .from("mu_lessons")
-        .select("id, module_id, slug, title, duration_seconds, sort_order")
-        .eq("id", latestProgress.lesson_id)
-        .maybeSingle(),
-
-      supabase
-        .from("mu_lesson_progress")
-        .select("id", {
-          count: "exact",
-          head: true,
-        })
-        .eq("user_id", userId)
-        .eq("course_id", latestProgress.course_id)
-        .eq("status", "completed"),
-
-      supabase
-        .from("mu_lessons")
-        .select("id", {
-          count: "exact",
-          head: true,
-        })
-        .eq("course_id", latestProgress.course_id)
-        .eq("is_published", true),
-    ]);
-
-  if (
-    courseResult.error ||
-    lessonResult.error ||
-    !courseResult.data ||
-    !lessonResult.data
-  ) {
+  if (modulesError) {
+    console.error("Unable to load learning modules:", modulesError.message);
     return null;
   }
 
-  const course = courseResult.data as CourseRow;
-  const lesson = lessonResult.data as LessonRow;
+  const modules = (modulesData ?? []).filter((module) =>
+    canAccessModuleSlug(context, module.slug),
+  );
 
-  const { data: moduleData } = await supabase
-    .from("mu_course_modules")
-    .select("id, title, sort_order")
-    .eq("id", lesson.module_id)
-    .maybeSingle();
+  if (modules.length === 0) {
+    return null;
+  }
 
-  const completedLessons = completedResult.count ?? 0;
-  const totalLessons = totalResult.count ?? 0;
+  const moduleIds = modules.map((module) => module.id);
 
-  const courseProgress =
-    totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
+  const { data: lessonsData, error: lessonsError } = await admin
+    .from("mu_lessons")
+    .select(
+      "id, course_id, module_id, slug, title, duration_seconds, sort_order",
+    )
+    .in("module_id", moduleIds)
+    .eq("is_published", true);
+
+  if (lessonsError) {
+    console.error("Unable to load learning lessons:", lessonsError.message);
+    return null;
+  }
+
+  const moduleOrder = new Map(
+    modules.map((module) => [module.id, module.sort_order]),
+  );
+
+  const lessons = ((lessonsData ?? []) as LessonRow[]).sort((a, b) => {
+    const moduleDifference =
+      (moduleOrder.get(a.module_id) ?? 0) - (moduleOrder.get(b.module_id) ?? 0);
+
+    return moduleDifference || a.sort_order - b.sort_order;
+  });
 
   return {
-    course,
-    lesson,
-    module: (moduleData as ModuleRow | null) ?? null,
-    completedLessons,
-    totalLessons,
-    courseProgress,
-    lastPositionSeconds: latestProgress.last_position_seconds,
-    lastViewedAt: latestProgress.last_viewed_at,
+    modules: modules as ModuleRow[],
+    lessons,
   };
 }
 
-export async function getLearningActivityStats(userId: string) {
+export async function getDashboardLearningState(
+  userId: string,
+  context: AccessContext,
+): Promise<DashboardLearningState | null> {
+  const catalog = await getAccessibleCatalog(context);
+
+  if (!catalog || catalog.lessons.length === 0) {
+    return null;
+  }
+
+  const supabase = await createClient();
+  const admin = createAdminClient();
+  const lessonIds = catalog.lessons.map((lesson) => lesson.id);
+
+  const { data: progressRows, error: progressError } = await supabase
+    .from("mu_lesson_progress")
+    .select(
+      "course_id, lesson_id, status, progress_percent, last_position_seconds, last_viewed_at",
+    )
+    .eq("user_id", userId)
+    .in("lesson_id", lessonIds)
+    .order("last_viewed_at", { ascending: false });
+
+  if (progressError) {
+    console.error("Unable to load learning progress:", progressError.message);
+  }
+
+  const progress = (progressRows ?? []) as ProgressRow[];
+  const latestProgress = progress[0] ?? null;
+  const lesson = latestProgress
+    ? (catalog.lessons.find((item) => item.id === latestProgress.lesson_id) ??
+      catalog.lessons[0])
+    : catalog.lessons[0];
+
+  const moduleData =
+    catalog.modules.find((module) => module.id === lesson.module_id) ?? null;
+
+  const { data: courseData, error: courseError } = await admin
+    .from("mu_courses")
+    .select("id, slug, title, category, thumbnail_url")
+    .eq("id", lesson.course_id)
+    .maybeSingle();
+
+  if (courseError || !courseData) {
+    return null;
+  }
+
+  const completedLessons = new Set(
+    progress
+      .filter((row) => row.status === "completed")
+      .map((row) => row.lesson_id),
+  ).size;
+  const totalLessons = catalog.lessons.length;
+
+  return {
+    course: courseData as CourseRow,
+    lesson,
+    module: moduleData,
+    completedLessons,
+    totalLessons,
+    courseProgress:
+      totalLessons > 0
+        ? Math.round((completedLessons / totalLessons) * 100)
+        : 0,
+    lastPositionSeconds: latestProgress?.last_position_seconds ?? 0,
+    lastViewedAt: latestProgress?.last_viewed_at ?? null,
+    accessibleLessonIds: lessonIds,
+  };
+}
+
+export async function getLearningActivityStats(
+  userId: string,
+  accessibleLessonIds: string[] = [],
+) {
   const supabase = await createClient();
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("mu_lesson_progress")
-    .select("status, last_viewed_at, completed_at")
+    .select("lesson_id, status, last_viewed_at, completed_at")
     .eq("user_id", userId)
     .order("last_viewed_at", { ascending: false });
+
+  if (accessibleLessonIds.length > 0) {
+    query = query.in("lesson_id", accessibleLessonIds);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     console.error("Unable to load learning activity:", error.message);
@@ -214,7 +202,6 @@ export async function getLearningActivityStats(userId: string) {
   }
 
   const rows = data ?? [];
-
   const completedLessons = rows.filter(
     (row) => row.status === "completed",
   ).length;
@@ -235,9 +222,7 @@ export async function getLearningActivityStats(userId: string) {
     const expectedDate = new Date(today);
     expectedDate.setDate(today.getDate() - index);
 
-    const expected = expectedDate.toISOString().slice(0, 10);
-
-    if (activityDates[index] === expected) {
+    if (activityDates[index] === expectedDate.toISOString().slice(0, 10)) {
       streakDays += 1;
     } else {
       break;
