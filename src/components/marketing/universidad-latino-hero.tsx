@@ -58,19 +58,16 @@ export function UniversidadLatinoHero() {
           </div>
 
           <h1 className="mt-7 text-[3.25rem] font-semibold leading-[0.96] tracking-[-0.065em] sm:text-6xl md:text-7xl lg:text-[5.6rem]">
-            <span className="universidad-fade-2 block">
-              Aprende habilidades.
-            </span>
+            <span className="universidad-fade-2 block">Gana Hasta</span>
 
             <span className="universidad-fade-3 mt-1 block bg-gradient-to-r from-[#d9f0e3] via-[#79a98e] to-[#4f806c] bg-clip-text text-transparent">
-              Construye ingresos.
+              $10,000 al Mes
             </span>
           </h1>
 
           <p className="universidad-fade-4 mx-auto mt-7 max-w-xl text-base font-medium leading-8 text-white/55 sm:text-lg lg:mx-0 lg:text-xl">
-            Aprende Trading, E-commerce y TikTok Shop en español con rutas
-            prácticas diseñadas para ayudarte a construir habilidades con el
-            potencial de generar hasta $10,000 al mes.
+            Domina Trading, E-commerce y TikTok Shop con cursos prácticos en
+            español.
           </p>
 
           <div className="universidad-fade-5 mt-9 flex flex-col items-stretch justify-center gap-4 sm:flex-row sm:items-center lg:justify-start">
