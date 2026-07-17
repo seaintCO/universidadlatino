@@ -1,6 +1,7 @@
 ﻿import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { CompleteLessonButton } from "@/components/lessons/complete-lesson-button";
 
 type LessonPageProps = {
   params: Promise<{
@@ -37,6 +38,10 @@ export default async function LessonPage({ params }: LessonPageProps) {
   const { courseSlug, lessonSlug } = await params;
   const supabase = await createClient();
 
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   const { data: course, error: courseError } = await supabase
     .from("mu_courses")
     .select("id, slug, title, category")
@@ -70,23 +75,37 @@ export default async function LessonPage({ params }: LessonPageProps) {
 
   const lesson = lessonData as LessonRecord;
 
-  const { data: moduleData } = await supabase
-    .from("mu_course_modules")
-    .select("id, title, sort_order")
-    .eq("id", lesson.module_id)
-    .maybeSingle();
+  const [{ data: moduleData }, { data: moduleLessons, error: lessonsError }] =
+    await Promise.all([
+      supabase
+        .from("mu_course_modules")
+        .select("id, title, sort_order")
+        .eq("id", lesson.module_id)
+        .maybeSingle(),
 
-  const { data: moduleLessons, error: moduleLessonsError } = await supabase
-    .from("mu_lessons")
-    .select("id, slug, title, sort_order")
-    .eq("module_id", lesson.module_id)
-    .eq("is_published", true)
-    .order("sort_order", { ascending: true });
+      supabase
+        .from("mu_lessons")
+        .select("id, slug, title, sort_order")
+        .eq("module_id", lesson.module_id)
+        .eq("is_published", true)
+        .order("sort_order", { ascending: true }),
+    ]);
 
-  if (moduleLessonsError) {
-    throw new Error(
-      `Unable to load module lessons: ${moduleLessonsError.message}`,
-    );
+  if (lessonsError) {
+    throw new Error(`Unable to load lessons: ${lessonsError.message}`);
+  }
+
+  let initiallyCompleted = false;
+
+  if (user) {
+    const { data: progress } = await supabase
+      .from("mu_lesson_progress")
+      .select("status")
+      .eq("user_id", user.id)
+      .eq("lesson_id", lesson.id)
+      .maybeSingle();
+
+    initiallyCompleted = progress?.status === "completed";
   }
 
   const lessons = moduleLessons ?? [];
@@ -124,6 +143,7 @@ export default async function LessonPage({ params }: LessonPageProps) {
         <aside className="border-b border-[#ddd9d0] bg-[#f7f5f0] lg:border-b-0 lg:border-r">
           <div className="border-b border-[#ddd9d0] p-5">
             <p className="editorial-label mb-2">{course.category}</p>
+
             <h1 className="text-xl font-semibold tracking-[-0.03em]">
               {course.title}
             </h1>
@@ -152,6 +172,7 @@ export default async function LessonPage({ params }: LessonPageProps) {
                   <span className="mr-2 text-xs text-[#8b8f89]">
                     {item.sort_order}.
                   </span>
+
                   {item.title}
                 </Link>
               );
@@ -257,6 +278,7 @@ export default async function LessonPage({ params }: LessonPageProps) {
                           <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#1f211f] text-xs font-bold text-white">
                             {index + 1}
                           </span>
+
                           {step}
                         </li>
                       ))}
@@ -273,16 +295,18 @@ export default async function LessonPage({ params }: LessonPageProps) {
               <aside className="space-y-5">
                 <section className="rounded-2xl border border-[#ddd9d0] bg-white p-5">
                   <p className="editorial-label mb-2">Progreso</p>
-                  <h2 className="text-lg font-semibold">
+
+                  <h2 className="mb-5 text-lg font-semibold">
                     Completa esta lección
                   </h2>
 
-                  <button
-                    type="button"
-                    className="mt-5 min-h-11 w-full rounded-lg bg-[#2f6650] px-4 text-sm font-semibold text-white hover:bg-[#254f3f]"
-                  >
-                    Marcar como completada
-                  </button>
+                  <CompleteLessonButton
+                    courseId={course.id}
+                    courseSlug={course.slug}
+                    lessonId={lesson.id}
+                    lessonSlug={lesson.slug}
+                    initiallyCompleted={initiallyCompleted}
+                  />
                 </section>
 
                 <section className="rounded-2xl border border-[#ddd9d0] bg-white p-5">
