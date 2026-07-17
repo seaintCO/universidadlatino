@@ -53,7 +53,7 @@ export function UniversidadLatinoHero() {
             </span>
 
             <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/65">
-              Universidad Latino ya está abierta
+              CursoCapital ya está abierta
             </span>
           </div>
 
@@ -170,7 +170,7 @@ export function UniversidadLatinoHero() {
                         </p>
 
                         <p className="mt-1 text-base font-semibold">
-                          Universidad Latino
+                          CursoCapital
                         </p>
                       </div>
 

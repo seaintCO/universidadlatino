@@ -71,7 +71,7 @@ export default function HomePage() {
 
               <p className="mx-auto mt-4 max-w-2xl text-sm leading-7 text-[#686c66] sm:text-base">
                 Descubre cómo funcionan las rutas, las lecciones y el
-                seguimiento de progreso dentro de Universidad Latino.
+                seguimiento de progreso dentro de CursoCapital.
               </p>
             </div>
 
@@ -88,7 +88,7 @@ export default function HomePage() {
                     <div className="text-center text-white">
                       <button
                         type="button"
-                        aria-label="Reproducir video de Universidad Latino"
+                        aria-label="Reproducir video de CursoCapital"
                         className="group mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-white/20 bg-white text-[#1f211f] shadow-[0_12px_35px_rgba(0,0,0,0.32)] transition-all duration-300 hover:scale-105 hover:shadow-[0_0_40px_-8px_rgba(121,169,142,0.65)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#79a98e] focus-visible:ring-offset-4 focus-visible:ring-offset-[#1c1f1d] sm:h-20 sm:w-20"
                       >
                         <Play
@@ -99,7 +99,7 @@ export default function HomePage() {
                       </button>
 
                       <p className="mt-5 text-sm font-semibold sm:text-base">
-                        Conoce Universidad Latino
+                        Conoce CursoCapital
                       </p>
 
                       <p className="mx-auto mt-2 max-w-sm text-xs leading-5 text-white/50 sm:text-sm">
@@ -110,7 +110,7 @@ export default function HomePage() {
                   </div>
 
                   <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between rounded-full border border-white/10 bg-black/30 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/50 backdrop-blur-xl sm:bottom-5 sm:left-5 sm:right-5 sm:px-5">
-                    <span>Universidad Latino</span>
+                    <span>CursoCapital</span>
                     <span>Vista previa</span>
                   </div>
                 </div>
@@ -284,9 +284,7 @@ export default function HomePage() {
                   Mejor valor
                 </div>
 
-                <p className="editorial-label text-[#b7bbb4]">
-                  Mercado University
-                </p>
+                <p className="editorial-label text-[#b7bbb4]">CursoCapital</p>
 
                 <h3 className="mt-4 max-w-md text-2xl font-semibold">
                   Acceso a las tres rutas
@@ -339,8 +337,8 @@ export default function HomePage() {
             </div>
 
             <p className="mx-auto mt-8 max-w-2xl text-center text-xs leading-5 text-[#868a84]">
-              Mercado University ofrece contenido educativo. No garantiza
-              ingresos, resultados financieros ni éxito comercial.
+              CursoCapital ofrece contenido educativo. No garantiza ingresos,
+              resultados financieros ni éxito comercial.
             </p>
           </div>
         </section>
