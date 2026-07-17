@@ -21,8 +21,8 @@ export function getLessonBySlug(
     return null;
   }
 
-  for (const module of course.modules) {
-    const lesson = module.lessons.find(
+  for (const courseModule of course.modules) {
+    const lesson = courseModule.lessons.find(
       (currentLesson) => currentLesson.slug === lessonSlug,
     );
 
@@ -30,7 +30,7 @@ export function getLessonBySlug(
       return {
         course,
         lesson,
-        moduleTitle: module.title,
+        moduleTitle: courseModule.title,
       };
     }
   }
@@ -40,16 +40,16 @@ export function getLessonBySlug(
 
 export function getCourseLessonCount(course: Course) {
   return course.modules.reduce(
-    (total, module) => total + module.lessons.length,
+    (total, courseModule) => total + courseModule.lessons.length,
     0,
   );
 }
 
 export function getCourseDuration(course: Course) {
   return course.modules.reduce(
-    (courseTotal, module) =>
+    (courseTotal, courseModule) =>
       courseTotal +
-      module.lessons.reduce(
+      courseModule.lessons.reduce(
         (moduleTotal, lesson) => moduleTotal + lesson.durationMinutes,
         0,
       ),

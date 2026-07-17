@@ -4,7 +4,12 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { isPurchaseKey } from "@/lib/payments/catalog";
 
 function stripeId(
-  value: string | Stripe.PaymentIntent | Stripe.Customer | null,
+  value:
+    | string
+    | Stripe.PaymentIntent
+    | Stripe.Customer
+    | Stripe.DeletedCustomer
+    | null,
 ) {
   if (!value) {
     return null;

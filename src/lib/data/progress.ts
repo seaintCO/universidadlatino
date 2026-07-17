@@ -66,7 +66,7 @@ export async function getDashboardLearningState(
     );
   }
 
-  let latestProgress = latestProgressData as ProgressRow | null;
+  const latestProgress = latestProgressData as ProgressRow | null;
 
   if (!latestProgress) {
     const { data: firstCourseData, error: firstCourseError } = await supabase
