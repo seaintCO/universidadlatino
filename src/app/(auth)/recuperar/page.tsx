@@ -17,7 +17,7 @@ export default async function RecoveryPage({
     <main className="flex min-h-screen items-center justify-center bg-[#f7f5f0] px-5">
       <div className="w-full max-w-md rounded-2xl border border-[#ddd9d0] bg-white p-8">
         <Link href="/" className="text-sm font-bold tracking-[-0.04em]">
-          MERCADO UNIVERSITY
+          CURSOCAPITAL
         </Link>
 
         <h1 className="mt-10 text-3xl font-semibold tracking-[-0.04em]">

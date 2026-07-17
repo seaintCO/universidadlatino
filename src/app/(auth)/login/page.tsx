@@ -16,7 +16,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
     <main className="grid min-h-screen bg-white md:grid-cols-2">
       <section className="hidden bg-[#1f211f] p-12 text-white md:flex md:flex-col md:justify-between">
         <Link href="/" className="text-base font-bold tracking-[-0.04em]">
-          MERCADO UNIVERSITY
+          CURSOCAPITAL
         </Link>
 
         <div className="max-w-md">
@@ -39,7 +39,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             href="/"
             className="mb-12 block text-sm font-bold tracking-[-0.04em] md:hidden"
           >
-            MERCADO UNIVERSITY
+            CURSOCAPITAL
           </Link>
 
           <h2 className="text-3xl font-semibold tracking-[-0.04em]">

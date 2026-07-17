@@ -37,8 +37,8 @@ export function CheckoutButton({
       };
 
       if (response.status === 401) {
-        const next = encodeURIComponent("/#precios");
-        window.location.assign(`/login?next=${next}`);
+        window.sessionStorage.setItem("cursocapital_pending_purchase", product);
+        window.location.assign("/registro");
         return;
       }
 
