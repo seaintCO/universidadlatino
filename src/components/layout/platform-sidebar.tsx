@@ -6,11 +6,13 @@ import {
   GraduationCap,
   Home,
   Library,
+  LogOut,
   MessageCircle,
   NotebookPen,
   Settings,
   Video,
 } from "lucide-react";
+import { logout } from "@/app/(auth)/actions";
 
 const navigation = [
   { label: "Inicio", href: "/dashboard", icon: Home },
@@ -65,6 +67,16 @@ export function PlatformSidebar() {
           <Settings size={18} strokeWidth={1.7} />
           Configuración
         </Link>
+
+        <form action={logout} className="mt-1">
+          <button
+            type="submit"
+            className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 text-sm font-medium text-[#4f534e] hover:bg-white hover:text-[#1f211f]"
+          >
+            <LogOut size={18} strokeWidth={1.7} />
+            Cerrar sesión
+          </button>
+        </form>
 
         <div className="mt-3 rounded-xl border border-[#ddd9d0] bg-white p-3">
           <p className="text-sm font-semibold">Mi cuenta</p>

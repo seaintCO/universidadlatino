@@ -15,7 +15,6 @@ import {
   getDashboardLearningState,
   getLearningActivityStats,
 } from "@/lib/data/progress";
-import { logout } from "@/app/(auth)/actions";
 import { Progress } from "@/components/ui/progress";
 
 function formatVideoPosition(seconds: number) {
@@ -84,14 +83,6 @@ export default async function DashboardPage() {
           </p>
         </div>
 
-        <form action={logout}>
-          <button
-            type="submit"
-            className="min-h-11 rounded-lg border border-[#ddd9d0] bg-white px-4 text-sm font-semibold text-[#1f211f] hover:bg-[#efede7]"
-          >
-            Cerrar sesión
-          </button>
-        </form>
       </header>
 
       <div className="mt-8 grid gap-6 xl:grid-cols-[1fr_340px]">
