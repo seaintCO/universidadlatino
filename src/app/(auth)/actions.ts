@@ -63,14 +63,15 @@ export async function login(formData: FormData) {
   });
 
   if (error || !signInData.user) {
-    redirect(
-      queryWithPurchase(
-        "/login",
-        purchase,
-        "error",
-        "Correo o contraseña incorrectos.",
-      ),
-    );
+    const normalizedMessage = error?.message.toLowerCase() ?? "";
+
+    const loginError = normalizedMessage.includes("email not confirmed")
+      ? "Confirma tu correo electrónico antes de iniciar sesión."
+      : normalizedMessage.includes("invalid login credentials")
+        ? "El correo o la contraseña no coinciden con tu cuenta."
+        : "No pudimos iniciar sesión. Revisa tus datos o recupera tu contraseña.";
+
+    redirect(queryWithPurchase("/login", purchase, "error", loginError));
   }
 
   revalidatePath("/", "layout");

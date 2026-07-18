@@ -63,51 +63,40 @@ export async function updateSession(request: NextRequest) {
     const loginUrl = request.nextUrl.clone();
 
     loginUrl.pathname = "/login";
+    loginUrl.search = "";
     loginUrl.searchParams.set("next", pathname);
+
+    const purchase = request.nextUrl.searchParams.get("purchase");
+
+    if (isPurchaseKey(purchase)) {
+      loginUrl.searchParams.set("purchase", purchase);
+    }
 
     return NextResponse.redirect(loginUrl);
   }
 
-  if (user && (pathname === "/login" || pathname === "/registro")) {
+  /*
+   * Never automatically redirect an authenticated visitor
+   * away from /login. They may need to switch to the email
+   * account used for their purchase.
+   */
+
+  if (user && pathname === "/registro") {
     const purchase = request.nextUrl.searchParams.get("purchase");
+
     const destinationUrl = request.nextUrl.clone();
 
     if (isPurchaseKey(purchase)) {
       destinationUrl.pathname = "/checkout/continuar";
       destinationUrl.search = "";
-      destinationUrl.hash = "";
       destinationUrl.searchParams.set("purchase", purchase);
 
       return NextResponse.redirect(destinationUrl);
     }
 
-    const [{ data: profile }, { data: accessRows }] = await Promise.all([
-      supabase
-        .from("mu_profiles")
-        .select("role")
-        .eq("id", user.id)
-        .maybeSingle(),
-
-      supabase
-        .from("mu_course_access")
-        .select("id")
-        .eq("user_id", user.id)
-        .eq("status", "active")
-        .limit(1),
-    ]);
-
-    const canEnterPlatform =
-      profile?.role === "admin" || (accessRows?.length ?? 0) > 0;
-
+    destinationUrl.pathname = "/";
     destinationUrl.search = "";
-
-    if (canEnterPlatform) {
-      destinationUrl.pathname = "/dashboard";
-      destinationUrl.hash = "";
-    } else {
-      destinationUrl.pathname = "/";
-      destinationUrl.hash = "precios";
-    }
+    destinationUrl.hash = "precios";
 
     return NextResponse.redirect(destinationUrl);
   }

@@ -13,13 +13,8 @@ type LoginPageProps = {
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const params = await searchParams;
+
   const purchase = isPurchaseKey(params.purchase) ? params.purchase : "";
-
-  const secondaryHref = purchase
-    ? `/registro?purchase=${encodeURIComponent(purchase)}`
-    : "/#precios";
-
-  const secondaryLabel = purchase ? "Crear cuenta" : "Elegir un curso";
 
   return (
     <main className="grid min-h-screen bg-white md:grid-cols-2">
@@ -34,12 +29,14 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           </h1>
 
           <p className="mt-6 leading-8 text-[#b7bbb4]">
-            Inicia sesión con la cuenta que utilizaste al comprar. Si todavía no
-            has comprado, elige primero la ruta que deseas.
+            Usa el mismo correo y contraseña que utilizaste al crear tu cuenta y
+            realizar tu compra.
           </p>
         </div>
 
-        <p className="text-sm text-[#8f948d]">Educación práctica en español.</p>
+        <p className="text-sm text-[#8f948d]">
+          Tu acceso permanece guardado en tu cuenta.
+        </p>
       </section>
 
       <section className="flex items-center justify-center px-6 py-16">
@@ -51,17 +48,20 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             CURSOCAPITAL
           </Link>
 
-          <h2 className="text-3xl font-semibold tracking-[-0.04em]">
+          <p className="editorial-label">Para estudiantes existentes</p>
+
+          <h1 className="mt-3 text-3xl font-semibold tracking-[-0.04em]">
             Inicia sesión
-          </h2>
+          </h1>
 
           <p className="mt-3 text-sm leading-6 text-[#686c66]">
-            Entra con la cuenta asociada a tu compra.
+            Tu compra y tu progreso están asociados a tu correo electrónico.
           </p>
 
           {purchase ? (
-            <div className="mt-5 rounded-lg border border-[#c9dacf] bg-[#edf4ef] p-3 text-sm text-[#254f3f]">
-              Después de iniciar sesión te enviaremos directamente a Stripe.
+            <div className="mt-5 rounded-lg border border-[#c9dacf] bg-[#edf4ef] p-3 text-sm leading-6 text-[#254f3f]">
+              Después de iniciar sesión continuarás directamente al pago de tu
+              curso seleccionado.
             </div>
           ) : null}
 
@@ -135,18 +135,35 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             >
               {purchase
                 ? "Iniciar sesión y continuar al pago"
-                : "Entrar a mi cuenta"}
+                : "Entrar a mis cursos"}
             </button>
           </form>
 
-          <p className="mt-8 text-center text-sm text-[#686c66]">
-            {purchase
-              ? "¿Aún no tienes una cuenta?"
-              : "¿Todavía no has comprado?"}{" "}
-            <Link href={secondaryHref} className="font-semibold text-[#1f211f]">
-              {secondaryLabel}
-            </Link>
-          </p>
+          {purchase ? (
+            <div className="mt-8 border-t border-[#ddd9d0] pt-7 text-center">
+              <p className="text-sm text-[#686c66]">¿Es tu primera compra?</p>
+
+              <Link
+                href={`/registro?purchase=${encodeURIComponent(purchase)}`}
+                className="mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-[#ddd9d0] bg-white px-5 text-sm font-semibold text-[#1f211f] hover:bg-[#efede7]"
+              >
+                Crear cuenta y pagar
+              </Link>
+            </div>
+          ) : (
+            <div className="mt-8 border-t border-[#ddd9d0] pt-7 text-center">
+              <p className="text-sm text-[#686c66]">
+                ¿Todavía no tienes un curso?
+              </p>
+
+              <Link
+                href="/#precios"
+                className="mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-[#ddd9d0] bg-white px-5 text-sm font-semibold text-[#1f211f] hover:bg-[#efede7]"
+              >
+                Elegir un curso
+              </Link>
+            </div>
+          )}
         </div>
       </section>
     </main>
