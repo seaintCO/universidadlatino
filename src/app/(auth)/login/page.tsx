@@ -15,9 +15,11 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const params = await searchParams;
   const purchase = isPurchaseKey(params.purchase) ? params.purchase : "";
 
-  const registerHref = purchase
+  const secondaryHref = purchase
     ? `/registro?purchase=${encodeURIComponent(purchase)}`
-    : "/registro";
+    : "/#precios";
+
+  const secondaryLabel = purchase ? "Crear cuenta" : "Elegir un curso";
 
   return (
     <main className="grid min-h-screen bg-white md:grid-cols-2">
@@ -28,11 +30,12 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
         <div className="max-w-md">
           <h1 className="text-5xl font-semibold leading-tight tracking-[-0.05em]">
-            Tu próxima habilidad empieza aquí.
+            Regresa a tus cursos.
           </h1>
 
           <p className="mt-6 leading-8 text-[#b7bbb4]">
-            Inicia sesión y continúa directamente al pago seguro de tu curso.
+            Inicia sesión con la cuenta que utilizaste al comprar. Si todavía no
+            has comprado, elige primero la ruta que deseas.
           </p>
         </div>
 
@@ -49,11 +52,11 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           </Link>
 
           <h2 className="text-3xl font-semibold tracking-[-0.04em]">
-            Bienvenido de nuevo
+            Inicia sesión
           </h2>
 
-          <p className="mt-3 text-sm text-[#686c66]">
-            Inicia sesión para continuar.
+          <p className="mt-3 text-sm leading-6 text-[#686c66]">
+            Entra con la cuenta asociada a tu compra.
           </p>
 
           {purchase ? (
@@ -132,14 +135,16 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             >
               {purchase
                 ? "Iniciar sesión y continuar al pago"
-                : "Iniciar sesión"}
+                : "Entrar a mi cuenta"}
             </button>
           </form>
 
           <p className="mt-8 text-center text-sm text-[#686c66]">
-            ¿Aún no tienes una cuenta?{" "}
-            <Link href={registerHref} className="font-semibold text-[#1f211f]">
-              Crear cuenta
+            {purchase
+              ? "¿Aún no tienes una cuenta?"
+              : "¿Todavía no has comprado?"}{" "}
+            <Link href={secondaryHref} className="font-semibold text-[#1f211f]">
+              {secondaryLabel}
             </Link>
           </p>
         </div>

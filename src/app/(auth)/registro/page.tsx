@@ -1,4 +1,5 @@
 ﻿import Link from "next/link";
+import { redirect } from "next/navigation";
 import { signup } from "@/app/(auth)/actions";
 import { isPurchaseKey } from "@/lib/payments/catalog";
 
@@ -13,9 +14,11 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
   const params = await searchParams;
   const purchase = isPurchaseKey(params.purchase) ? params.purchase : "";
 
-  const loginHref = purchase
-    ? `/login?purchase=${encodeURIComponent(purchase)}`
-    : "/login";
+  if (!purchase) {
+    redirect("/#precios");
+  }
+
+  const loginHref = `/login?purchase=${encodeURIComponent(purchase)}`;
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#f7f5f0] px-5 py-16">
@@ -29,14 +32,13 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
         </h1>
 
         <p className="mt-3 text-sm leading-6 text-[#686c66]">
-          Crea tu acceso y continúa directamente al pago seguro de tu curso.
+          Tu curso ya está seleccionado. Crea tu acceso y continúa directamente
+          a Stripe para finalizar el pago.
         </p>
 
-        {purchase ? (
-          <div className="mt-5 rounded-lg border border-[#c9dacf] bg-[#edf4ef] p-3 text-sm text-[#254f3f]">
-            Tu selección está guardada. No tendrás que volver a elegir el curso.
-          </div>
-        ) : null}
+        <div className="mt-5 rounded-lg border border-[#c9dacf] bg-[#edf4ef] p-3 text-sm text-[#254f3f]">
+          Tu selección está guardada. No tendrás que volver a elegir el curso.
+        </div>
 
         {params.error ? (
           <div className="mt-6 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
@@ -121,7 +123,7 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
             type="submit"
             className="min-h-12 w-full rounded-lg bg-[#2f6650] px-5 text-sm font-semibold !text-white hover:bg-[#254f3f]"
           >
-            {purchase ? "Crear cuenta y continuar al pago" : "Crear cuenta"}
+            Crear cuenta y continuar al pago
           </button>
         </form>
 

@@ -1,12 +1,42 @@
 ﻿import Link from "next/link";
+import { createClient } from "@/lib/supabase/server";
+import { getUserAccessContext } from "@/lib/payments/access";
 
-export function MarketingHeader() {
+export async function MarketingHeader() {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  let accountHref = "/login";
+  let accountLabel = "Iniciar sesión";
+  let primaryHref = "/#precios";
+  let primaryLabel = "Comenzar";
+
+  if (user) {
+    const access = await getUserAccessContext(user.id);
+    const canEnterPlatform = access.isAdmin || access.keys.size > 0;
+
+    if (canEnterPlatform) {
+      accountHref = "/dashboard";
+      accountLabel = "Mi cuenta";
+      primaryHref = "/dashboard";
+      primaryLabel = "Continuar";
+    } else {
+      accountHref = "/#precios";
+      accountLabel = "Elegir curso";
+      primaryHref = "/#precios";
+      primaryLabel = "Comprar";
+    }
+  }
+
   return (
     <header className="sticky top-0 z-40 border-b border-[#ddd9d0]/80 bg-[#f7f5f0]/95 backdrop-blur-xl">
-      <div className="container-shell flex h-16 items-center justify-between">
+      <div className="container-shell flex h-16 items-center justify-between gap-3">
         <Link
           href="/"
-          className="text-base font-bold tracking-[-0.04em] text-[#1f211f]"
+          className="shrink-0 text-sm font-bold tracking-[-0.04em] text-[#1f211f] sm:text-base"
         >
           CURSOCAPITAL
         </Link>
@@ -27,26 +57,35 @@ export function MarketingHeader() {
           </Link>
 
           <Link
-            href="/login"
+            href={accountHref}
             className="text-sm font-medium text-[#686c66] hover:text-[#1f211f]"
           >
-            Iniciar sesión
+            {accountLabel}
           </Link>
 
           <Link
-            href="/#precios"
+            href={primaryHref}
             className="rounded-lg bg-[#2f6650] px-5 py-2.5 text-sm font-semibold !text-white hover:bg-[#254f3f]"
           >
-            Comenzar
+            {primaryLabel}
           </Link>
         </nav>
 
-        <Link
-          href="/#precios"
-          className="rounded-lg bg-[#2f6650] px-4 py-2 text-sm font-semibold !text-white md:hidden"
-        >
-          Comenzar
-        </Link>
+        <div className="flex items-center gap-2 md:hidden">
+          <Link
+            href={accountHref}
+            className="rounded-lg border border-[#ddd9d0] bg-white px-3 py-2 text-[11px] font-semibold text-[#1f211f]"
+          >
+            {accountLabel}
+          </Link>
+
+          <Link
+            href={primaryHref}
+            className="rounded-lg bg-[#2f6650] px-3 py-2 text-[11px] font-semibold !text-white"
+          >
+            {primaryLabel}
+          </Link>
+        </div>
       </div>
     </header>
   );

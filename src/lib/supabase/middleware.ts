@@ -1,4 +1,4 @@
-import { createServerClient } from "@supabase/ssr";
+﻿import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { isPurchaseKey } from "@/lib/payments/catalog";
 
@@ -75,10 +75,38 @@ export async function updateSession(request: NextRequest) {
     if (isPurchaseKey(purchase)) {
       destinationUrl.pathname = "/checkout/continuar";
       destinationUrl.search = "";
+      destinationUrl.hash = "";
       destinationUrl.searchParams.set("purchase", purchase);
-    } else {
+
+      return NextResponse.redirect(destinationUrl);
+    }
+
+    const [{ data: profile }, { data: accessRows }] = await Promise.all([
+      supabase
+        .from("mu_profiles")
+        .select("role")
+        .eq("id", user.id)
+        .maybeSingle(),
+
+      supabase
+        .from("mu_course_access")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("status", "active")
+        .limit(1),
+    ]);
+
+    const canEnterPlatform =
+      profile?.role === "admin" || (accessRows?.length ?? 0) > 0;
+
+    destinationUrl.search = "";
+
+    if (canEnterPlatform) {
       destinationUrl.pathname = "/dashboard";
-      destinationUrl.search = "";
+      destinationUrl.hash = "";
+    } else {
+      destinationUrl.pathname = "/";
+      destinationUrl.hash = "precios";
     }
 
     return NextResponse.redirect(destinationUrl);

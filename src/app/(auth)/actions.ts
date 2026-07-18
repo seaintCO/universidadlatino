@@ -11,10 +11,14 @@ function textValue(formData: FormData, field: string) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function safeInternalPath(value: string, fallback: string) {
+  return value.startsWith("/") && !value.startsWith("//") ? value : fallback;
+}
+
 function purchaseDestination(value: string) {
   return isPurchaseKey(value)
     ? `/checkout/continuar?purchase=${encodeURIComponent(value)}`
-    : "/dashboard";
+    : "/#precios";
 }
 
 function queryWithPurchase(
@@ -53,12 +57,12 @@ export async function login(formData: FormData) {
 
   const supabase = await createClient();
 
-  const { error } = await supabase.auth.signInWithPassword({
+  const { data: signInData, error } = await supabase.auth.signInWithPassword({
     email,
     password,
   });
 
-  if (error) {
+  if (error || !signInData.user) {
     redirect(
       queryWithPurchase(
         "/login",
@@ -75,7 +79,29 @@ export async function login(formData: FormData) {
     redirect(purchaseDestination(purchase));
   }
 
-  redirect(next.startsWith("/") ? next : "/dashboard");
+  const [{ data: profile }, { data: accessRows }] = await Promise.all([
+    supabase
+      .from("mu_profiles")
+      .select("role")
+      .eq("id", signInData.user.id)
+      .maybeSingle(),
+
+    supabase
+      .from("mu_course_access")
+      .select("id")
+      .eq("user_id", signInData.user.id)
+      .eq("status", "active")
+      .limit(1),
+  ]);
+
+  const canEnterPlatform =
+    profile?.role === "admin" || (accessRows?.length ?? 0) > 0;
+
+  if (!canEnterPlatform) {
+    redirect("/#precios");
+  }
+
+  redirect(safeInternalPath(next, "/dashboard"));
 }
 
 export async function signup(formData: FormData) {
@@ -84,6 +110,10 @@ export async function signup(formData: FormData) {
   const email = textValue(formData, "email");
   const password = textValue(formData, "password");
   const purchase = textValue(formData, "purchase");
+
+  if (!isPurchaseKey(purchase)) {
+    redirect("/#precios");
+  }
 
   if (!firstName || !lastName || !email || password.length < 8) {
     redirect(
@@ -103,9 +133,7 @@ export async function signup(formData: FormData) {
     process.env.NEXT_PUBLIC_SITE_URL ??
     "http://localhost:3000";
 
-  const callbackDestination = isPurchaseKey(purchase)
-    ? `/checkout/continuar?purchase=${encodeURIComponent(purchase)}`
-    : "/dashboard";
+  const callbackDestination = `/checkout/continuar?purchase=${encodeURIComponent(purchase)}`;
 
   const { data, error } = await supabase.auth.signUp({
     email,
@@ -128,24 +156,16 @@ export async function signup(formData: FormData) {
 
   revalidatePath("/", "layout");
 
-  /*
-   * When Supabase email confirmation is disabled, signUp returns a session
-   * and the student goes directly to Stripe.
-   */
   if (data.session) {
     redirect(purchaseDestination(purchase));
   }
 
-  /*
-   * When email confirmation is enabled, preserve the selected purchase.
-   * After confirming, the callback continues to Stripe.
-   */
   redirect(
     queryWithPurchase(
       "/login",
       purchase,
       "message",
-      "Revisa tu correo para confirmar tu cuenta. Después inicia sesión para continuar directamente al pago.",
+      "Revisa tu correo para confirmar tu cuenta. Después inicia sesión y continuarás directamente al pago.",
     ),
   );
 }
