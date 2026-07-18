@@ -2,6 +2,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { isPurchaseKey, type PurchaseKey } from "@/lib/payments/catalog";
 import { ContinueCheckout } from "@/components/payments/continue-checkout";
+import { getUserEntitlements } from "@/lib/payments/access";
+import { canPurchase } from "@/lib/payments/entitlements";
 
 type ContinueCheckoutPageProps = {
   searchParams: Promise<{
@@ -26,6 +28,11 @@ export default async function ContinueCheckoutPage({
 
   if (!user) {
     redirect(`/login?purchase=${encodeURIComponent(purchase)}`);
+  }
+
+  const entitlements = await getUserEntitlements(user.id);
+  if (!canPurchase(entitlements, purchase)) {
+    redirect("/dashboard");
   }
 
   return <ContinueCheckout product={purchase as PurchaseKey} />;

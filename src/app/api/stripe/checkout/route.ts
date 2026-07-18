@@ -7,6 +7,8 @@ import {
   purchaseCatalog,
 } from "@/lib/payments/catalog";
 import { ensureStripeCustomer } from "@/lib/payments/customer";
+import { getUserEntitlements } from "@/lib/payments/access";
+import { canPurchase } from "@/lib/payments/entitlements";
 
 export async function POST(request: Request) {
   try {
@@ -34,28 +36,16 @@ export async function POST(request: Request) {
       );
     }
 
-    const { data: existingAccess, error: accessError } = await supabase
-      .from("mu_course_access")
-      .select("access_key")
-      .eq("user_id", user.id)
-      .eq("status", "active");
+    const entitlements = await getUserEntitlements(user.id);
 
-    if (accessError) {
-      throw new Error(
-        `Unable to verify existing access: ${accessError.message}`,
+    if (!canPurchase(entitlements, body.product)) {
+      return NextResponse.json(
+        {
+          error: "already_owned",
+          message: "You already own this course.",
+        },
+        { status: 409 },
       );
-    }
-
-    const ownedKeys = new Set(
-      (existingAccess ?? []).map((row) => row.access_key),
-    );
-    const alreadyOwned = ownedKeys.has("bundle") || ownedKeys.has(body.product);
-
-    if (alreadyOwned) {
-      return NextResponse.json({
-        url: "/dashboard",
-        alreadyOwned: true,
-      });
     }
 
     const stripeSecret = process.env.STRIPE_SECRET_KEY;

@@ -56,7 +56,7 @@ export async function grantAccessFromCheckoutSession(
       updated_at: new Date().toISOString(),
     },
     {
-      onConflict: "user_id,access_key",
+      onConflict: "user_id,course_slug",
     },
   );
 
@@ -85,6 +85,7 @@ export async function grantAccessFromPaymentIntent(
     {
       user_id: userId,
       access_key: accessKey,
+      course_slug: paymentIntent.metadata.course_slug ?? accessKey,
       status: "active",
       stripe_payment_intent_id: paymentIntent.id,
       stripe_customer_id: stripeId(paymentIntent.customer),
@@ -94,7 +95,7 @@ export async function grantAccessFromPaymentIntent(
       updated_at: new Date().toISOString(),
     },
     {
-      onConflict: "user_id,access_key",
+      onConflict: "user_id,course_slug",
     },
   );
 

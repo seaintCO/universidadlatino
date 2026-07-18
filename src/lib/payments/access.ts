@@ -5,7 +5,11 @@ import {
   moduleSlugToPurchaseKey,
   type PurchaseKey,
 } from "@/lib/payments/catalog";
-import { ownsPurchase } from "@/lib/payments/entitlements";
+import {
+  deriveUserEntitlements,
+  ownsPurchase,
+  type UserEntitlements,
+} from "@/lib/payments/entitlements";
 
 export type AccessContext = {
   role: string | null;
@@ -20,16 +24,25 @@ export async function getUserAccessKeys(
 
   const { data, error } = await supabase
     .from("mu_course_access")
-    .select("access_key")
+    .select("access_key, course_slug")
     .eq("user_id", userId)
     .eq("status", "active");
 
   if (error) {
-    console.error("Unable to load course access:", error.message);
-    return new Set();
+    throw new Error(`Unable to load course access: ${error.message}`);
   }
 
-  return new Set((data ?? []).map((row) => row.access_key as PurchaseKey));
+  return new Set(
+    (data ?? [])
+      .map((row) => row.course_slug ?? row.access_key)
+      .filter((key): key is PurchaseKey => Boolean(key)),
+  );
+}
+
+export async function getUserEntitlements(
+  userId: string,
+): Promise<UserEntitlements> {
+  return deriveUserEntitlements(await getUserAccessKeys(userId));
 }
 
 export async function getUserAccessContext(

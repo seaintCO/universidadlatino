@@ -136,6 +136,7 @@ export function CheckoutButton({
       const result = (await response.json()) as {
         url?: string;
         error?: string;
+        message?: string;
       };
 
       if (response.status === 401) {
@@ -144,8 +145,13 @@ export function CheckoutButton({
         return;
       }
 
+      if (response.status === 409 && result.error === "already_owned") {
+        window.location.assign("/dashboard");
+        return;
+      }
+
       if (!response.ok || !result.url) {
-        throw new Error(result.error ?? "No se pudo iniciar el pago.");
+        throw new Error(result.message ?? result.error ?? "No se pudo iniciar el pago.");
       }
 
       window.location.assign(result.url);

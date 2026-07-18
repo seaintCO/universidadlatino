@@ -13,6 +13,9 @@ import { UniversidadLatinoHero } from "@/components/marketing/universidad-latino
 import { ReviewMarquee } from "@/components/marketing/review-marquee";
 import { CheckoutButton } from "@/components/payments/checkout-button";
 import type { PurchaseKey } from "@/lib/payments/catalog";
+import { createClient } from "@/lib/supabase/server";
+import { getUserEntitlements } from "@/lib/payments/access";
+import { deriveUserEntitlements } from "@/lib/payments/entitlements";
 
 const launchCourses: Array<{
   id: Exclude<PurchaseKey, "bundle">;
@@ -57,13 +60,61 @@ const includedCourses = [
   "Ganar Dinero con TikTok Shop",
 ];
 
-export default function HomePage() {
+export default async function HomePage() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const entitlements = user
+    ? await getUserEntitlements(user.id)
+    : deriveUserEntitlements([]);
+
   return (
     <div className="min-h-screen bg-[#f7f5f0]">
       <MarketingHeader />
 
       <main>
         <UniversidadLatinoHero />
+
+        <section
+          aria-labelledby="vsl-heading"
+          className="bg-[#f7f5f0] px-4 py-16 sm:px-6 sm:py-20 lg:py-24"
+        >
+          <div className="mx-auto max-w-6xl text-center">
+            <h2
+              id="vsl-heading"
+              className="mx-auto max-w-4xl text-3xl font-semibold tracking-[-0.04em] text-[#1f211f] md:text-4xl"
+            >
+              Descubre Cómo Personas Comunes Están Aprendiendo Habilidades que
+              Pueden Cambiar Su Futuro
+            </h2>
+
+            <p className="mt-4 text-sm leading-7 text-[#686c66] sm:text-base">
+              Mira este video antes de elegir tu curso.
+            </p>
+
+            <div className="mx-auto mt-9 w-full max-w-[1000px] overflow-hidden rounded-2xl bg-[#1f211f] shadow-[0_24px_70px_-32px_rgba(31,33,31,0.5)]">
+              <div className="aspect-video w-full">
+                <iframe
+                  className="h-full w-full border-0"
+                  src="https://www.youtube-nocookie.com/embed/pUOAx5AGFSM?autoplay=0&controls=1&rel=0"
+                  title="Video de presentación oficial de Curso Capital"
+                  aria-label="Reproducir video de presentación de Curso Capital"
+                  loading="lazy"
+                  allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  referrerPolicy="strict-origin-when-cross-origin"
+                  allowFullScreen
+                />
+              </div>
+            </div>
+
+            <Link
+              href="#cursos"
+              aria-label="Comenzar ahora y ver los cursos disponibles"
+              className="mt-8 inline-flex min-h-12 items-center justify-center rounded-lg bg-[#2f6650] px-7 text-sm font-semibold !text-white transition-colors hover:bg-[#254f3f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2f6650] focus-visible:ring-offset-2"
+            >
+              Comenzar Ahora
+            </Link>
+          </div>
+        </section>
 
         <section className="overflow-hidden bg-[#f7f5f0] px-4 pb-16 pt-10 sm:px-6 sm:pb-20 sm:pt-14 lg:pb-24">
           <div className="mx-auto max-w-6xl">
@@ -208,13 +259,23 @@ export default function HomePage() {
                 </div>
 
                 <div className="mt-auto pt-10">
-                  <CheckoutButton
-                    product={course.id}
-                    className="border border-[#ddd9d0] bg-[#faf9f6] !text-[#1f211f] hover:border-[#2f6650] hover:bg-[#2f6650] hover:!text-white"
-                  >
-                    Comprar por ${course.price}
-                    <ArrowRight size={16} />
-                  </CheckoutButton>
+                  {entitlements.ownedCourses.includes(course.id) ? (
+                    <Link
+                      href={`/dashboard/courses/${course.id}`}
+                      className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg border border-[#ddd9d0] bg-[#faf9f6] px-5 text-sm font-semibold !text-[#1f211f] transition-all hover:border-[#2f6650] hover:bg-[#2f6650] hover:!text-white"
+                    >
+                      Continuar curso
+                      <ArrowRight size={16} />
+                    </Link>
+                  ) : (
+                    <CheckoutButton
+                      product={course.id}
+                      className="border border-[#ddd9d0] bg-[#faf9f6] !text-[#1f211f] hover:border-[#2f6650] hover:bg-[#2f6650] hover:!text-white"
+                    >
+                      Comprar por ${course.price}
+                      <ArrowRight size={16} />
+                    </CheckoutButton>
+                  )}
                 </div>
               </article>
             ))}
@@ -336,13 +397,23 @@ export default function HomePage() {
                 </ul>
 
                 <div className="mt-9">
-                  <CheckoutButton
-                    product="bundle"
-                    className="rounded-full border border-white/20 bg-white !text-[#1f211f] hover:scale-[1.01] hover:bg-[#efede7]"
-                  >
-                    Obtener los tres cursos por $100
-                    <ArrowRight size={17} />
-                  </CheckoutButton>
+                  {entitlements.canPurchaseBundle ? (
+                    <CheckoutButton
+                      product="bundle"
+                      className="rounded-full border border-white/20 bg-white !text-[#1f211f] hover:scale-[1.01] hover:bg-[#efede7]"
+                    >
+                      Obtener los tres cursos por $100
+                      <ArrowRight size={17} />
+                    </CheckoutButton>
+                  ) : (
+                    <Link
+                      href="/dashboard"
+                      className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full border border-white/20 bg-white px-6 text-sm font-semibold !text-[#1f211f] hover:bg-[#efede7]"
+                    >
+                      Ya tienes acceso a todos los cursos.
+                      <ArrowRight size={17} />
+                    </Link>
+                  )}
                 </div>
               </div>
             </div>

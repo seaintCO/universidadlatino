@@ -150,6 +150,9 @@ export default async function CoursePage({ params }: CoursePageProps) {
       ? Math.round((completedCount / accessibleLessons.length) * 100)
       : 0;
   const firstAvailableLesson = accessibleLessons[0] ?? null;
+  const coursePurchaseKey = modules
+    .map((module) => moduleSlugToPurchaseKey(module.slug))
+    .find((key) => key !== null) ?? null;
   const hasAnyAccess = accessContext.isAdmin || accessContext.keys.size > 0;
 
   return (
@@ -199,23 +202,28 @@ export default async function CoursePage({ params }: CoursePageProps) {
           </div>
 
           {firstAvailableLesson ? (
-            <Link
-              href={`/cursos/${course.slug}/${firstAvailableLesson.slug}`}
-              className="mt-8 inline-flex min-h-12 items-center gap-2 rounded-lg bg-white px-6 text-sm font-semibold !text-[#1f211f] hover:bg-[#efede7]"
-            >
-              <PlayCircle size={18} />
-              {completedCount > 0 ? "Continuar aprendiendo" : "Comenzar curso"}
-            </Link>
-          ) : (
+            <div className="mt-8">
+              <p className="mb-3 text-sm font-semibold text-[#d8dbd5]">
+                Ya tienes acceso.
+              </p>
+              <Link
+                href={`/cursos/${course.slug}/${firstAvailableLesson.slug}`}
+                className="inline-flex min-h-12 items-center gap-2 rounded-lg bg-white px-6 text-sm font-semibold !text-[#1f211f] hover:bg-[#efede7]"
+              >
+                <PlayCircle size={18} />
+                Continuar Curso
+              </Link>
+            </div>
+          ) : coursePurchaseKey ? (
             <div className="mt-8 max-w-sm">
               <CheckoutButton
-                product="bundle"
+                product={coursePurchaseKey}
                 className="bg-white !text-[#1f211f] hover:bg-[#efede7]"
               >
-                Comprar acceso completo por $100
+                Comprar por {purchaseCatalog[coursePurchaseKey].priceLabel}
               </CheckoutButton>
             </div>
-          )}
+          ) : null}
         </header>
 
         {!hasAnyAccess ? (

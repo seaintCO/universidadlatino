@@ -1,6 +1,7 @@
 ﻿import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { isPurchaseKey } from "@/lib/payments/catalog";
+import { canPurchase, deriveUserEntitlements } from "@/lib/payments/entitlements";
 
 const protectedPaths = [
   "/dashboard",
@@ -73,6 +74,28 @@ export async function updateSession(request: NextRequest) {
     }
 
     return NextResponse.redirect(loginUrl);
+  }
+
+  if (user && pathname === "/checkout/continuar") {
+    const purchase = request.nextUrl.searchParams.get("purchase");
+    if (isPurchaseKey(purchase)) {
+      const { data } = await supabase
+        .from("mu_course_access")
+        .select("access_key, course_slug")
+        .eq("user_id", user.id)
+        .eq("status", "active");
+      const entitlements = deriveUserEntitlements(
+        (data ?? [])
+          .map((row) => row.course_slug ?? row.access_key)
+          .filter(isPurchaseKey),
+      );
+      if (!canPurchase(entitlements, purchase)) {
+        const dashboardUrl = request.nextUrl.clone();
+        dashboardUrl.pathname = "/dashboard";
+        dashboardUrl.search = "";
+        return NextResponse.redirect(dashboardUrl);
+      }
+    }
   }
 
   /*

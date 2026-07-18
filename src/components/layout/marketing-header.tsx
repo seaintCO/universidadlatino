@@ -1,6 +1,6 @@
 ﻿import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { getUserAccessContext } from "@/lib/payments/access";
+import { getUserEntitlements } from "@/lib/payments/access";
 import { logout } from "@/app/(auth)/actions";
 
 export async function MarketingHeader() {
@@ -13,9 +13,7 @@ export async function MarketingHeader() {
   let hasAccess = false;
 
   if (user) {
-    const access = await getUserAccessContext(user.id);
-
-    hasAccess = access.isAdmin || access.keys.size > 0;
+    hasAccess = (await getUserEntitlements(user.id)).hasAnyCourse;
   }
 
   return (
@@ -65,7 +63,7 @@ export async function MarketingHeader() {
                 href="/dashboard"
                 className="text-sm font-semibold text-[#1f211f] hover:text-[#2f6650]"
               >
-                Mi cuenta
+                Mi Panel
               </Link>
 
               <form action={logout}>
@@ -119,7 +117,7 @@ export async function MarketingHeader() {
                 href="/dashboard"
                 className="rounded-lg bg-[#2f6650] px-3 py-2 text-[11px] font-semibold !text-white"
               >
-                Mi cuenta
+                Mi Panel
               </Link>
 
               <form action={logout}>

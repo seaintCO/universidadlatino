@@ -29,6 +29,7 @@ export function ContinueCheckout({ product }: { product: PurchaseKey }) {
         const result = (await response.json()) as {
           url?: string;
           error?: string;
+          message?: string;
         };
 
         if (response.status === 401) {
@@ -38,8 +39,13 @@ export function ContinueCheckout({ product }: { product: PurchaseKey }) {
           return;
         }
 
+        if (response.status === 409 && result.error === "already_owned") {
+          window.location.assign("/dashboard");
+          return;
+        }
+
         if (!response.ok || !result.url) {
-          throw new Error(result.error ?? "No se pudo abrir el pago seguro.");
+          throw new Error(result.message ?? result.error ?? "No se pudo abrir el pago seguro.");
         }
 
         window.location.assign(result.url);

@@ -1,9 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {
   canEnterPlatform,
   checkoutPaymentSucceeded,
   ownsPurchase,
+  canPurchase,
+  deriveUserEntitlements,
 } from "../src/lib/payments/entitlements.ts";
 
 test("1. new user buying Trading receives only Trading", () => {
@@ -51,4 +54,44 @@ test("9. returning customer reconciliation restores a missing key", () => {
 
 test("10. success return can activate access before webhook retry", () => {
   assert.equal(checkoutPaymentSucceeded("paid"), true);
+});
+
+test("11. Trading owner has no Trading purchase action", () => {
+  const access = deriveUserEntitlements(["trading"]);
+  assert.equal(access.ownsTrading, true);
+  assert.equal(access.canPurchaseTrading, false);
+});
+
+test("12. bundle owner continues every individual course", () => {
+  const access = deriveUserEntitlements(["bundle"]);
+  assert.deepEqual(access.ownedCourses, ["trading", "ecommerce", "tiktok_shop"]);
+  assert.equal(access.canPurchaseEcommerce, false);
+});
+
+test("13. API policy rejects duplicate purchases", () => {
+  assert.equal(canPurchase(deriveUserEntitlements(["trading"]), "trading"), false);
+});
+
+test("14. bundle blocks every individual purchase", () => {
+  const access = deriveUserEntitlements(["bundle"]);
+  for (const course of ["trading", "ecommerce", "tiktok_shop"] as const)
+    assert.equal(canPurchase(access, course), false);
+});
+
+test("15. all three individual courses hide the bundle purchase", () => {
+  const access = deriveUserEntitlements(["trading", "ecommerce", "tiktok_shop"]);
+  assert.equal(access.canPurchaseBundle, false);
+});
+
+test("16. webhook uses an idempotent entitlement upsert", () => {
+  const source = readFileSync("src/lib/payments/grant-access.ts", "utf8");
+  assert.match(source, /upsert[\s\S]*onConflict: "user_id,course_slug"/);
+});
+
+test("17. database enforces unique user and course slug", () => {
+  const migration = readFileSync(
+    "supabase/migrations/20260718010000_duplicate_purchase_protection.sql",
+    "utf8",
+  );
+  assert.match(migration, /add constraint mu_course_access_user_course_slug_key[\s\S]*unique using index/i);
 });
