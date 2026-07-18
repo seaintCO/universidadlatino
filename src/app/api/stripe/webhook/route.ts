@@ -1,17 +1,25 @@
 ﻿import { NextResponse } from "next/server";
 import Stripe from "stripe";
-import { grantAccessFromCheckoutSession } from "@/lib/payments/grant-access";
+import {
+  grantAccessFromCheckoutSession,
+  grantAccessFromPaymentIntent,
+} from "@/lib/payments/grant-access";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   const stripeSecret = process.env.STRIPE_SECRET_KEY;
+
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
   if (!stripeSecret || !webhookSecret) {
     return NextResponse.json(
-      { error: "Stripe webhook is not configured." },
-      { status: 500 },
+      {
+        error: "Stripe webhook is not configured.",
+      },
+      {
+        status: 500,
+      },
     );
   }
 
@@ -20,13 +28,18 @@ export async function POST(request: Request) {
 
   if (!signature) {
     return NextResponse.json(
-      { error: "Missing Stripe signature." },
-      { status: 400 },
+      {
+        error: "Missing Stripe signature.",
+      },
+      {
+        status: 400,
+      },
     );
   }
 
   try {
     const rawBody = await request.text();
+
     const event = stripe.webhooks.constructEvent(
       rawBody,
       signature,
@@ -42,18 +55,26 @@ export async function POST(request: Request) {
       );
     }
 
-    return NextResponse.json({ received: true });
+    if (event.type === "payment_intent.succeeded") {
+      await grantAccessFromPaymentIntent(
+        event.data.object as Stripe.PaymentIntent,
+      );
+    }
+
+    return NextResponse.json({
+      received: true,
+    });
   } catch (error) {
     console.error("Stripe webhook error:", error);
 
     return NextResponse.json(
       {
         error:
-          error instanceof Error
-            ? error.message
-            : "Webhook processing failed.",
+          error instanceof Error ? error.message : "Webhook processing failed.",
       },
-      { status: 400 },
+      {
+        status: 400,
+      },
     );
   }
 }

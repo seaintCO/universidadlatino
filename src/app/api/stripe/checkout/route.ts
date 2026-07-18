@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -15,7 +15,7 @@ export async function POST(request: Request) {
 
     if (!isPurchaseKey(body.product)) {
       return NextResponse.json(
-        { error: "Producto inválido." },
+        { error: "Producto invÃ¡lido." },
         { status: 400 },
       );
     }
@@ -28,7 +28,7 @@ export async function POST(request: Request) {
 
     if (!user) {
       return NextResponse.json(
-        { error: "Debes iniciar sesión antes de comprar." },
+        { error: "Debes iniciar sesiÃ³n antes de comprar." },
         { status: 401 },
       );
     }
@@ -80,6 +80,7 @@ export async function POST(request: Request) {
       success_url: `${origin}/pago/exito?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/pago/cancelado`,
       customer_email: user.email ?? undefined,
+      customer_creation: "always",
       client_reference_id: user.id,
       allow_promotion_codes: true,
       billing_address_collection: "auto",

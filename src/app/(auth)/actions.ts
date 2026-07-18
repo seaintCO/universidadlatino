@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isPurchaseKey } from "@/lib/payments/catalog";
+import { reconcileStripeAccessForUser } from "@/lib/payments/reconcile-access";
 
 function textValue(formData: FormData, field: string) {
   const value = formData.get(field);
@@ -72,6 +73,12 @@ export async function login(formData: FormData) {
         : "No pudimos iniciar sesión. Revisa tus datos o recupera tu contraseña.";
 
     redirect(queryWithPurchase("/login", purchase, "error", loginError));
+  }
+
+  const recovery = await reconcileStripeAccessForUser(signInData.user.id);
+
+  if (recovery.error) {
+    console.error("Purchase recovery warning:", recovery.error);
   }
 
   revalidatePath("/", "layout");

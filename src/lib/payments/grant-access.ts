@@ -22,6 +22,7 @@ export async function grantAccessFromCheckoutSession(
   session: Stripe.Checkout.Session,
 ) {
   const userId = session.metadata?.user_id ?? session.client_reference_id;
+
   const accessKey = session.metadata?.access_key;
 
   if (!userId || !isPurchaseKey(accessKey)) {
@@ -57,5 +58,43 @@ export async function grantAccessFromCheckoutSession(
 
   if (error) {
     throw new Error(`Unable to grant course access: ${error.message}`);
+  }
+}
+
+export async function grantAccessFromPaymentIntent(
+  paymentIntent: Stripe.PaymentIntent,
+) {
+  const userId = paymentIntent.metadata.user_id;
+  const accessKey = paymentIntent.metadata.access_key;
+
+  if (
+    !userId ||
+    !isPurchaseKey(accessKey) ||
+    paymentIntent.status !== "succeeded"
+  ) {
+    return;
+  }
+
+  const supabase = createAdminClient();
+
+  const { error } = await supabase.from("mu_course_access").upsert(
+    {
+      user_id: userId,
+      access_key: accessKey,
+      status: "active",
+      stripe_payment_intent_id: paymentIntent.id,
+      stripe_customer_id: stripeId(paymentIntent.customer),
+      amount_total: paymentIntent.amount_received || paymentIntent.amount,
+      currency: paymentIntent.currency,
+      purchased_at: new Date(paymentIntent.created * 1000).toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+    {
+      onConflict: "user_id,access_key",
+    },
+  );
+
+  if (error) {
+    throw new Error(`Unable to grant PaymentIntent access: ${error.message}`);
   }
 }
