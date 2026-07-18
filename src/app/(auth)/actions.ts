@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isPurchaseKey } from "@/lib/payments/catalog";
 import { reconcileStripeAccessForUser } from "@/lib/payments/reconcile-access";
+import { ensureStripeCustomer } from "@/lib/payments/customer";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 function textValue(formData: FormData, field: string) {
   const value = formData.get(field);
@@ -117,6 +119,7 @@ export async function signup(formData: FormData) {
   const lastName = textValue(formData, "lastName");
   const email = textValue(formData, "email");
   const password = textValue(formData, "password");
+  const confirmPassword = textValue(formData, "confirmPassword");
   const purchase = textValue(formData, "purchase");
 
   if (!isPurchaseKey(purchase)) {
@@ -134,48 +137,41 @@ export async function signup(formData: FormData) {
     );
   }
 
+  if (password !== confirmPassword) {
+    redirect(queryWithPurchase("/registro", purchase, "error", "Las contraseñas no coinciden."));
+  }
+
   const supabase = await createClient();
 
-  const origin =
-    process.env.NEXT_PUBLIC_APP_URL ??
-    process.env.NEXT_PUBLIC_SITE_URL ??
-    "http://localhost:3000";
-
-  const callbackDestination = `/checkout/continuar?purchase=${encodeURIComponent(purchase)}`;
-
-  const { data, error } = await supabase.auth.signUp({
+  const admin = createAdminClient();
+  const { data: created, error: createError } = await admin.auth.admin.createUser({
     email,
     password,
-    options: {
-      emailRedirectTo: `${origin}/auth/callback?next=${encodeURIComponent(
-        callbackDestination,
-      )}`,
-      data: {
+    email_confirm: true,
+    user_metadata: {
         first_name: firstName,
         last_name: lastName,
         full_name: `${firstName} ${lastName}`,
-      },
     },
   });
 
-  if (error) {
-    redirect(queryWithPurchase("/registro", purchase, "error", error.message));
+  if (createError || !created.user) {
+    const duplicate = createError?.message.toLowerCase().includes("already");
+    redirect(queryWithPurchase("/registro", purchase, "error", duplicate
+      ? "Ya existe una cuenta con este correo. Inicia sesión para continuar tu compra."
+      : "No pudimos crear tu cuenta. Intenta nuevamente."));
   }
+
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error || !data.user) {
+    redirect(queryWithPurchase("/login", purchase, "error", "Tu cuenta fue creada. Inicia sesión para continuar."));
+  }
+
+  await ensureStripeCustomer(data.user);
 
   revalidatePath("/", "layout");
 
-  if (data.session) {
-    redirect(purchaseDestination(purchase));
-  }
-
-  redirect(
-    queryWithPurchase(
-      "/login",
-      purchase,
-      "message",
-      "Revisa tu correo para confirmar tu cuenta. Después inicia sesión y continuarás directamente al pago.",
-    ),
-  );
+  redirect(purchaseDestination(purchase));
 }
 
 export async function requestPasswordReset(formData: FormData) {

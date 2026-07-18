@@ -8,7 +8,13 @@ export async function GET(request: Request) {
 
   if (code) {
     const supabase = await createClient();
-    await supabase.auth.exchangeCodeForSession(code);
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+
+    if (error) {
+      const destination = new URL("/login", url.origin);
+      destination.searchParams.set("error", "El enlace no es válido o expiró.");
+      return NextResponse.redirect(destination);
+    }
   }
 
   return NextResponse.redirect(

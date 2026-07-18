@@ -63,12 +63,11 @@ function AccountChoiceModal({
           id="purchase-account-title"
           className="mt-3 text-2xl font-semibold tracking-[-0.04em] sm:text-3xl"
         >
-          Primero conecta tu compra con una cuenta.
+          Antes de continuar...
         </h2>
 
         <p className="mt-4 text-sm leading-7 text-white/55">
-          Así podremos desbloquear automáticamente tu curso después de que
-          Stripe confirme el pago.
+          ¿Ya tienes una cuenta?
         </p>
 
         <div className="mt-7 space-y-3">
@@ -93,7 +92,7 @@ function AccountChoiceModal({
           >
             <span className="flex items-center gap-3">
               <UserPlus size={19} />
-              Soy un estudiante nuevo
+              Crear cuenta
             </span>
 
             <ArrowRight

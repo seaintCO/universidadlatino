@@ -119,6 +119,24 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
             />
           </div>
 
+          <div>
+            <label
+              htmlFor="confirmPassword"
+              className="mb-2 block text-sm font-semibold"
+            >
+              Confirmar contraseña
+            </label>
+            <input
+              id="confirmPassword"
+              name="confirmPassword"
+              type="password"
+              minLength={8}
+              autoComplete="new-password"
+              required
+              className="focus-ring min-h-12 w-full rounded-lg border border-[#ddd9d0] px-4"
+            />
+          </div>
+
           <button
             type="submit"
             className="min-h-12 w-full rounded-lg bg-[#2f6650] px-5 text-sm font-semibold !text-white hover:bg-[#254f3f]"

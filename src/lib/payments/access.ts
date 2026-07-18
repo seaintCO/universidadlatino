@@ -5,6 +5,7 @@ import {
   moduleSlugToPurchaseKey,
   type PurchaseKey,
 } from "@/lib/payments/catalog";
+import { ownsPurchase } from "@/lib/payments/entitlements";
 
 export type AccessContext = {
   role: string | null;
@@ -58,11 +59,7 @@ export function canAccessPurchaseKey(
   context: AccessContext,
   purchaseKey: PurchaseKey,
 ) {
-  return (
-    context.isAdmin ||
-    context.keys.has("bundle") ||
-    context.keys.has(purchaseKey)
-  );
+  return context.isAdmin || ownsPurchase(context.keys, purchaseKey);
 }
 
 export function canAccessModuleSlug(

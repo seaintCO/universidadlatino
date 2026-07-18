@@ -6,6 +6,7 @@ import {
   isPurchaseKey,
   purchaseCatalog,
 } from "@/lib/payments/catalog";
+import { ensureStripeCustomer } from "@/lib/payments/customer";
 
 export async function POST(request: Request) {
   try {
@@ -58,16 +59,13 @@ export async function POST(request: Request) {
     }
 
     const stripeSecret = process.env.STRIPE_SECRET_KEY;
-
-    if (!stripeSecret) {
-      throw new Error("Missing STRIPE_SECRET_KEY.");
-    }
-
+    if (!stripeSecret) throw new Error("Stripe no está configurado.");
     const stripe = new Stripe(stripeSecret);
     const configuredOrigin =
       process.env.NEXT_PUBLIC_APP_URL ?? process.env.NEXT_PUBLIC_SITE_URL;
     const origin = configuredOrigin ?? new URL(request.url).origin;
     const product = body.product;
+    const customerId = await ensureStripeCustomer(user);
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
@@ -79,23 +77,30 @@ export async function POST(request: Request) {
       ],
       success_url: `${origin}/pago/exito?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/pago/cancelado`,
-      customer_email: user.email ?? undefined,
-      customer_creation: "always",
+      customer: customerId,
       client_reference_id: user.id,
       allow_promotion_codes: true,
       billing_address_collection: "auto",
       metadata: {
         user_id: user.id,
         access_key: product,
+        course: product,
+        course_slug: product,
+        email: user.email ?? "",
+        customer_id: customerId,
         product_name: purchaseCatalog[product].name,
       },
       payment_intent_data: {
         metadata: {
           user_id: user.id,
           access_key: product,
+          course: product,
+          course_slug: product,
+          email: user.email ?? "",
+          customer_id: customerId,
         },
       },
-    });
+    }, { idempotencyKey: `checkout-${user.id}-${product}-${Math.floor(Date.now() / 300000)}` });
 
     if (!session.url) {
       throw new Error("Stripe did not return a Checkout URL.");

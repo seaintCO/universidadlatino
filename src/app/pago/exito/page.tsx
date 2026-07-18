@@ -37,7 +37,7 @@ export default async function PaymentSuccessPage({
     redirect("/dashboard");
   }
 
-  await grantAccessFromCheckoutSession(session);
+  await grantAccessFromCheckoutSession(session, user.id);
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#f7f5f0] px-5 py-16">

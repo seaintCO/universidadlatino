@@ -2,6 +2,7 @@
 import type Stripe from "stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isPurchaseKey } from "@/lib/payments/catalog";
+import { checkoutPaymentSucceeded } from "@/lib/payments/entitlements";
 
 function stripeId(
   value:
@@ -20,6 +21,7 @@ function stripeId(
 
 export async function grantAccessFromCheckoutSession(
   session: Stripe.Checkout.Session,
+  expectedUserId?: string,
 ) {
   const userId = session.metadata?.user_id ?? session.client_reference_id;
 
@@ -29,10 +31,11 @@ export async function grantAccessFromCheckoutSession(
     throw new Error("Checkout session is missing valid access metadata.");
   }
 
-  if (
-    session.payment_status !== "paid" &&
-    session.payment_status !== "no_payment_required"
-  ) {
+  if (expectedUserId && userId !== expectedUserId) {
+    throw new Error("La compra pertenece a otra cuenta.");
+  }
+
+  if (!checkoutPaymentSucceeded(session.payment_status)) {
     return;
   }
 
@@ -46,6 +49,7 @@ export async function grantAccessFromCheckoutSession(
       stripe_checkout_session_id: session.id,
       stripe_payment_intent_id: stripeId(session.payment_intent),
       stripe_customer_id: stripeId(session.customer),
+      course_slug: session.metadata?.course_slug ?? accessKey,
       amount_total: session.amount_total,
       currency: session.currency,
       purchased_at: new Date().toISOString(),
