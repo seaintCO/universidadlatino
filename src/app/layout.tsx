@@ -1,10 +1,12 @@
 ﻿import type { Metadata } from "next";
 import "./globals.css";
+import { SiteFooter } from "@/components/layout/site-footer";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "https://cursocapital.com"),
   title: {
-    default: "Mercado University",
-    template: "%s | Mercado University",
+    default: "CursoCapital",
+    template: "%s | CursoCapital",
   },
   description:
     "Cursos prácticos en español para construir habilidades digitales y oportunidades reales.",
@@ -17,7 +19,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es">
-      <body>{children}</body>
+      <body>{children}<SiteFooter /></body>
     </html>
   );
 }

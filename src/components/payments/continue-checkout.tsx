@@ -1,29 +1,29 @@
 ﻿"use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { AlertCircle, LoaderCircle } from "lucide-react";
 import type { PurchaseKey } from "@/lib/payments/catalog";
 
 export function ContinueCheckout({ product }: { product: PurchaseKey }) {
-  const started = useRef(false);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [acceptedRefundPolicy, setAcceptedRefundPolicy] = useState(false);
+  const [attempted, setAttempted] = useState(false);
 
-  useEffect(() => {
-    if (started.current) {
-      return;
-    }
-
-    started.current = true;
-
-    async function openStripe() {
+  async function openStripe() {
+      setAttempted(true);
+      if (!acceptedTerms || !acceptedRefundPolicy) return;
+      setLoading(true);
+      setError("");
       try {
         const response = await fetch("/api/stripe/checkout", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ product }),
+          body: JSON.stringify({ product, acceptedTerms, acceptedRefundPolicy }),
         });
 
         const result = (await response.json()) as {
@@ -55,11 +55,9 @@ export function ContinueCheckout({ product }: { product: PurchaseKey }) {
             ? checkoutError.message
             : "No se pudo abrir el pago seguro.",
         );
+        setLoading(false);
       }
-    }
-
-    void openStripe();
-  }, [product]);
+  }
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#070807] px-5 py-16 text-white">
@@ -87,24 +85,39 @@ export function ContinueCheckout({ product }: { product: PurchaseKey }) {
           </>
         ) : (
           <>
-            <LoaderCircle
-              size={44}
-              className="mx-auto animate-spin text-[#79a98e]"
-              strokeWidth={1.7}
-            />
+            {loading ? <LoaderCircle size={44} className="mx-auto animate-spin text-[#79a98e]" strokeWidth={1.7} /> : null}
 
             <p className="mt-6 text-[10px] font-bold uppercase tracking-[0.18em] text-[#79a98e]">
               Cuenta verificada
             </p>
 
             <h1 className="mt-3 text-2xl font-semibold tracking-[-0.04em]">
-              Abriendo tu pago seguro…
+              {loading ? "Abriendo tu pago seguro…" : "Confirma antes de pagar"}
             </h1>
 
             <p className="mt-3 text-sm leading-7 text-white/50">
-              Te estamos enviando directamente a Stripe para finalizar tu
-              compra.
+              Revisa y acepta las políticas para continuar a Stripe.
             </p>
+
+            <fieldset className="mt-6 space-y-3 text-left text-xs leading-5 text-white/70">
+              <legend className="sr-only">Aceptación requerida para comprar</legend>
+              <label className="flex min-h-11 cursor-pointer items-start gap-3 rounded-lg p-2">
+                <input type="checkbox" required checked={acceptedTerms} onChange={(event) => setAcceptedTerms(event.currentTarget.checked)} className="mt-0.5 h-5 w-5 shrink-0 accent-[#79a98e]" />
+                <span>He leído y acepto los <Link href="/terms" target="_blank" rel="noopener noreferrer" className="font-semibold !text-white underline">Términos y Condiciones</Link>.
+                  {attempted && !acceptedTerms ? <span className="mt-1 block font-semibold text-red-300">Debes aceptar los Términos y Condiciones.</span> : null}
+                </span>
+              </label>
+              <label className="flex min-h-11 cursor-pointer items-start gap-3 rounded-lg p-2">
+                <input type="checkbox" required checked={acceptedRefundPolicy} onChange={(event) => setAcceptedRefundPolicy(event.currentTarget.checked)} className="mt-0.5 h-5 w-5 shrink-0 accent-[#79a98e]" />
+                <span>Entiendo que todos los cursos digitales son ventas finales conforme a la <Link href="/refund-policy" target="_blank" rel="noopener noreferrer" className="font-semibold !text-white underline">Política de Reembolsos</Link>, salvo cuando la ley aplicable disponga lo contrario.
+                  {attempted && !acceptedRefundPolicy ? <span className="mt-1 block font-semibold text-red-300">Debes aceptar la Política de Reembolsos.</span> : null}
+                </span>
+              </label>
+            </fieldset>
+
+            <button type="button" onClick={() => void openStripe()} disabled={loading} className="mt-6 min-h-12 w-full rounded-lg bg-white px-6 text-sm font-semibold text-[#111311] disabled:opacity-60">
+              {loading ? "Abriendo Stripe…" : "Continuar al pago"}
+            </button>
           </>
         )}
       </div>

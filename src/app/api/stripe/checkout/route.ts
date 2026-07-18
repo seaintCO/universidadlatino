@@ -14,11 +14,20 @@ export async function POST(request: Request) {
   try {
     const body = (await request.json()) as {
       product?: unknown;
+      acceptedTerms?: unknown;
+      acceptedRefundPolicy?: unknown;
     };
 
     if (!isPurchaseKey(body.product)) {
       return NextResponse.json(
         { error: "Producto invÃ¡lido." },
+        { status: 400 },
+      );
+    }
+
+    if (body.acceptedTerms !== true || body.acceptedRefundPolicy !== true) {
+      return NextResponse.json(
+        { error: "legal_acceptance_required", message: "Debes aceptar los Términos y Condiciones y la Política de Reembolsos." },
         { status: 400 },
       );
     }
@@ -56,6 +65,12 @@ export async function POST(request: Request) {
     const origin = configuredOrigin ?? new URL(request.url).origin;
     const product = body.product;
     const customerId = await ensureStripeCustomer(user);
+    const legalUrls = {
+      terms_url: `${origin}/terms`,
+      privacy_url: `${origin}/privacy`,
+      refund_policy_url: `${origin}/refund-policy`,
+    };
+    const acceptedAt = new Date().toISOString();
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
@@ -78,6 +93,12 @@ export async function POST(request: Request) {
         course_slug: product,
         email: user.email ?? "",
         customer_id: customerId,
+        ...legalUrls,
+        legal_version: "2026-07-18",
+        accepted_terms: "true",
+        accepted_refund_policy: "true",
+        accepted_at: acceptedAt,
+        policy_version: "2026-07",
         product_name: purchaseCatalog[product].name,
       },
       payment_intent_data: {
@@ -88,6 +109,12 @@ export async function POST(request: Request) {
           course_slug: product,
           email: user.email ?? "",
           customer_id: customerId,
+          ...legalUrls,
+          legal_version: "2026-07-18",
+          accepted_terms: "true",
+          accepted_refund_policy: "true",
+          accepted_at: acceptedAt,
+          policy_version: "2026-07",
         },
       },
     }, { idempotencyKey: `checkout-${user.id}-${product}-${Math.floor(Date.now() / 300000)}` });

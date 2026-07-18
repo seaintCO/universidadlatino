@@ -50,6 +50,11 @@ export async function grantAccessFromCheckoutSession(
       stripe_payment_intent_id: stripeId(session.payment_intent),
       stripe_customer_id: stripeId(session.customer),
       course_slug: session.metadata?.course_slug ?? accessKey,
+      accepted_terms: session.metadata?.accepted_terms === "true",
+      accepted_refund_policy:
+        session.metadata?.accepted_refund_policy === "true",
+      accepted_at: session.metadata?.accepted_at ?? null,
+      policy_version: session.metadata?.policy_version ?? null,
       amount_total: session.amount_total,
       currency: session.currency,
       purchased_at: new Date().toISOString(),
@@ -86,6 +91,11 @@ export async function grantAccessFromPaymentIntent(
       user_id: userId,
       access_key: accessKey,
       course_slug: paymentIntent.metadata.course_slug ?? accessKey,
+      accepted_terms: paymentIntent.metadata.accepted_terms === "true",
+      accepted_refund_policy:
+        paymentIntent.metadata.accepted_refund_policy === "true",
+      accepted_at: paymentIntent.metadata.accepted_at ?? null,
+      policy_version: paymentIntent.metadata.policy_version ?? null,
       status: "active",
       stripe_payment_intent_id: paymentIntent.id,
       stripe_customer_id: stripeId(paymentIntent.customer),

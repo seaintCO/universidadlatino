@@ -119,8 +119,13 @@ export function CheckoutButton({
   const [loading, setLoading] = useState(false);
   const [showAccountModal, setShowAccountModal] = useState(false);
   const [error, setError] = useState("");
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [acceptedRefundPolicy, setAcceptedRefundPolicy] = useState(false);
+  const [acceptanceAttempted, setAcceptanceAttempted] = useState(false);
 
   async function startCheckout() {
+    setAcceptanceAttempted(true);
+    if (!acceptedTerms || !acceptedRefundPolicy) return;
     setLoading(true);
     setError("");
 
@@ -130,7 +135,7 @@ export function CheckoutButton({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ product }),
+        body: JSON.stringify({ product, acceptedTerms, acceptedRefundPolicy }),
       });
 
       const result = (await response.json()) as {
@@ -168,6 +173,21 @@ export function CheckoutButton({
   return (
     <>
       <div className="w-full">
+        <fieldset className="mb-3 space-y-2 text-left text-[11px] leading-5 text-current opacity-80">
+          <legend className="sr-only">Aceptación requerida para comprar</legend>
+          <label className="flex min-h-10 cursor-pointer items-start gap-2 p-1">
+            <input type="checkbox" required checked={acceptedTerms} onChange={(event) => setAcceptedTerms(event.currentTarget.checked)} className="mt-0.5 h-5 w-5 shrink-0 accent-[#2f6650]" />
+            <span>He leído y acepto los <Link href="/terms" target="_blank" rel="noopener noreferrer" className="font-semibold underline">Términos y Condiciones</Link>.
+              {acceptanceAttempted && !acceptedTerms ? <span className="block font-semibold text-red-600">Debes aceptar los Términos y Condiciones.</span> : null}
+            </span>
+          </label>
+          <label className="flex min-h-10 cursor-pointer items-start gap-2 p-1">
+            <input type="checkbox" required checked={acceptedRefundPolicy} onChange={(event) => setAcceptedRefundPolicy(event.currentTarget.checked)} className="mt-0.5 h-5 w-5 shrink-0 accent-[#2f6650]" />
+            <span>Entiendo que todos los cursos digitales son ventas finales conforme a la <Link href="/refund-policy" target="_blank" rel="noopener noreferrer" className="font-semibold underline">Política de Reembolsos</Link>, salvo cuando la ley aplicable disponga lo contrario.
+              {acceptanceAttempted && !acceptedRefundPolicy ? <span className="block font-semibold text-red-600">Debes aceptar la Política de Reembolsos.</span> : null}
+            </span>
+          </label>
+        </fieldset>
         <button
           type="button"
           onClick={startCheckout}

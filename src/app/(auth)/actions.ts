@@ -120,6 +120,8 @@ export async function signup(formData: FormData) {
   const email = textValue(formData, "email");
   const password = textValue(formData, "password");
   const confirmPassword = textValue(formData, "confirmPassword");
+  const acceptedTerms = formData.get("acceptedTerms") === "on";
+  const acceptedRefundPolicy = formData.get("acceptedRefundPolicy") === "on";
   const purchase = textValue(formData, "purchase");
 
   if (!isPurchaseKey(purchase)) {
@@ -139,6 +141,13 @@ export async function signup(formData: FormData) {
 
   if (password !== confirmPassword) {
     redirect(queryWithPurchase("/registro", purchase, "error", "Las contraseñas no coinciden."));
+  }
+
+  if (!acceptedTerms) {
+    redirect(queryWithPurchase("/registro", purchase, "error", "Debes aceptar los Términos y Condiciones."));
+  }
+  if (!acceptedRefundPolicy) {
+    redirect(queryWithPurchase("/registro", purchase, "error", "Debes aceptar la Política de Reembolsos."));
   }
 
   const supabase = await createClient();

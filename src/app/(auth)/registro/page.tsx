@@ -2,6 +2,7 @@
 import { redirect } from "next/navigation";
 import { signup } from "@/app/(auth)/actions";
 import { isPurchaseKey } from "@/lib/payments/catalog";
+import { RegistrationAcceptance } from "@/components/legal/registration-acceptance";
 
 type SignupPageProps = {
   searchParams: Promise<{
@@ -143,6 +144,8 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
           >
             Crear cuenta y continuar al pago
           </button>
+
+          <RegistrationAcceptance />
         </form>
 
         <p className="mt-7 text-center text-sm text-[#686c66]">
